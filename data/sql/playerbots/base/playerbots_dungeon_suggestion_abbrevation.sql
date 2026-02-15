@@ -7,9 +7,9 @@ CREATE TABLE `playerbots_dungeon_suggestion_abbrevation` (
     PRIMARY KEY (`id`),
     KEY `definition_slug` (`definition_slug`)
 )
-ENGINE=MyISAM
+ENGINE=InnoDB
 DEFAULT CHARSET=utf8
-ROW_FORMAT=FIXED
+ROW_FORMAT=DYNAMIC
 COMMENT='Playerbot dungeon suggestion abbrevations';
 
 -- = Example =

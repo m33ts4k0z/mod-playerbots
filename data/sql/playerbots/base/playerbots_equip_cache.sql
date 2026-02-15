@@ -7,4 +7,4 @@ CREATE TABLE `playerbots_equip_cache` (
   `quality` INT(11) NOT NULL,
   `item` INT(11) NOT NULL,
 PRIMARY KEY (`id`)
-) ENGINE=MyISAM DEFAULT CHARSET=utf8 ROW_FORMAT=FIXED COMMENT='Playerbots equip Cache';
+) ENGINE=InnoDB DEFAULT CHARSET=utf8 ROW_FORMAT=DYNAMIC COMMENT='Playerbots equip Cache';

@@ -4,7 +4,7 @@ CREATE TABLE `playerbots_arena_team_names` (
                                                `name` varchar(24) NOT NULL UNIQUE,
                                                `type` TINYINT(3) NOT NULL,
                                                PRIMARY KEY (`name_id`)
-) ENGINE=MyISAM DEFAULT CHARSET=utf8 ROW_FORMAT=FIXED COMMENT='Playerbot arena team names';
+) ENGINE=InnoDB DEFAULT CHARSET=utf8 ROW_FORMAT=DYNAMIC COMMENT='Playerbot arena team names';
 
 
 DELETE FROM `playerbots_arena_team_names`;

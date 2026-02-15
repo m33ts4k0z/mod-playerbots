@@ -11,9 +11,9 @@ CREATE TABLE `playerbots_dungeon_suggestion_definition` (
 
     PRIMARY KEY (`id`)
 )
-ENGINE=MyISAM
+ENGINE=InnoDB
 DEFAULT CHARSET=utf8
-ROW_FORMAT=FIXED
+ROW_FORMAT=DYNAMIC
 COMMENT='Playerbot dungeon suggestion definitions';
 
 INSERT INTO `playerbots_dungeon_suggestion_definition` VALUES

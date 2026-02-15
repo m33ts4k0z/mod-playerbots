@@ -43,6 +43,6 @@ CREATE TABLE IF NOT EXISTS `playerbots_item_info_cache`
     `scale_31`       bigint(20) DEFAULT NULL,
     `scale_32`       bigint(20) DEFAULT NULL,
     PRIMARY KEY (`id`)
-) ENGINE = MyISAM
+) ENGINE=InnoDB
   DEFAULT CHARSET = utf8
-  ROW_FORMAT = FIXED COMMENT ='PlayerbotAI item info Cache';
+  ROW_FORMAT = DYNAMIC COMMENT ='PlayerbotAI item info Cache';

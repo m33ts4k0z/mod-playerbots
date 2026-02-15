@@ -7,4 +7,4 @@ CREATE TABLE `playerbots_tele_cache` (
   `y` float(8) NOT NULL,
   `z` float(8) NOT NULL,
 PRIMARY KEY (`id`)
-) ENGINE=MyISAM DEFAULT CHARSET=utf8 ROW_FORMAT=FIXED COMMENT='Playerbots Tele Cache';
+) ENGINE=InnoDB DEFAULT CHARSET=utf8 ROW_FORMAT=DYNAMIC COMMENT='Playerbots Tele Cache';

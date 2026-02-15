@@ -4,7 +4,7 @@ CREATE TABLE `playerbots_names` (
   `name` varchar(255) NOT NULL,
   `gender` tinyint(3) unsigned NOT NULL,
 PRIMARY KEY (`name_id`)
-) ENGINE=MyISAM DEFAULT CHARSET=utf8 ROW_FORMAT=FIXED COMMENT='Playerbot RandomBot names';
+) ENGINE=InnoDB DEFAULT CHARSET=utf8 ROW_FORMAT=DYNAMIC COMMENT='Playerbot RandomBot names';
 
 INSERT INTO `playerbots_names` VALUES
 (0,'Abennon',0),

@@ -23,7 +23,7 @@ If there are multiple booleans in the same table, bit(1) is better, otherwise it
 ## Rules
 
 - Use `InnoDB` as engine for dynamic tables (most likely in the `auth` and `characters` databases).
-- Use `MyISAM` for **read-only** tables (in `world` database), but if you're not sure, just use innoDB.
+- Use `InnoDB` for tables (recommended). Use `MyISAM` only for **read-only** tables in `world` database if needed; when in doubt, use InnoDB.
 - Use `utf8` as charset.
 
 

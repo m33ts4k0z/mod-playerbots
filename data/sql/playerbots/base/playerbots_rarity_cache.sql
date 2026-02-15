@@ -4,4 +4,4 @@ CREATE TABLE `playerbots_rarity_cache` (
   `item` INT(11) NOT NULL,
   `rarity` float NOT NULL,
   PRIMARY KEY (`id`)
-) ENGINE=MyISAM DEFAULT CHARSET=utf8 ROW_FORMAT=FIXED COMMENT='Playerbots Rarity Cache';
+) ENGINE=InnoDB DEFAULT CHARSET=utf8 ROW_FORMAT=DYNAMIC COMMENT='Playerbots Rarity Cache';
