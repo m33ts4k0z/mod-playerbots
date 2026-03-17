@@ -26,7 +26,6 @@
 #include "FleeManager.h"
 #include "FlightMasterCache.h"
 #include "GridNotifiers.h"
-#include "GuildTaskMgr.h"
 #include "LFGMgr.h"
 #include "MapMgr.h"
 #include "NewRpgInfo.h"
@@ -39,6 +38,7 @@
 #include "PlayerbotFactory.h"
 #include "Playerbots.h"
 #include "Position.h"
+#include "RaceMgr.h"
 #include "Random.h"
 #include "RandomPlayerbotFactory.h"
 #include "ServerFacade.h"
@@ -1019,7 +1019,7 @@ void RandomPlayerbotMgr::CheckBgQueue()
 
             // Arena logic
             bool isRated = false;
-            if (uint8 arenaType = BattlegroundMgr::BGArenaType(queueTypeId))
+            if (BattlegroundMgr::BGArenaType(queueTypeId))
             {
                 BattlegroundQueue& bgQueue = sBattlegroundMgr->GetBattlegroundQueue(queueTypeId);
                 GroupQueueInfo ginfo;
@@ -1106,7 +1106,7 @@ void RandomPlayerbotMgr::CheckBgQueue()
             BattlegroundData[queueTypeId][bracketId].minLevel = pvpDiff->minLevel;
             BattlegroundData[queueTypeId][bracketId].maxLevel = pvpDiff->maxLevel;
 
-            if (uint8 arenaType = BattlegroundMgr::BGArenaType(queueTypeId))
+            if (BattlegroundMgr::BGArenaType(queueTypeId))
             {
                 bool isRated = false;
                 BattlegroundQueue& bgQueue = sBattlegroundMgr->GetBattlegroundQueue(queueTypeId);
@@ -1691,7 +1691,7 @@ void RandomPlayerbotMgr::RandomTeleport(Player* bot, std::vector<WorldLocation>&
                                {
                                    std::vector<uint32>::iterator i =
                                        find(sPlayerbotAIConfig.randomBotMaps.begin(),
-                                            sPlayerbotAIConfig.randomBotMaps.end(), l.getMapId());
+                                            sPlayerbotAIConfig.randomBotMaps.end(), l.GetMapId());
                                    return i == sPlayerbotAIConfig.randomBotMaps.end();
                                }),
                 tlocs.end());
@@ -2011,20 +2011,16 @@ void RandomPlayerbotMgr::PrepareTeleportCache()
                 for (int i = bracket.low; i <= bracket.high; i++)
                 {
                     if (forHorde)
-                    {
                         hordeStarterPerLevelCache[i].push_back(loc);
-                    }
                     if (forAlliance)
-                    {
                         allianceStarterPerLevelCache[i].push_back(loc);
-                    }
                 }
 
             } while (results->NextRow());
         }
 
         // add all initial position
-        for (uint32 i = 1; i < MAX_RACES; i++)
+        for (uint32 i = 1; i < sRaceMgr->GetMaxRaces(); i++)
         {
             for (uint32 j = 1; j < MAX_CLASSES; j++)
             {
@@ -2037,7 +2033,7 @@ void RandomPlayerbotMgr::PrepareTeleportCache()
 
                 for (int32 l = 1; l <= 5; l++)
                 {
-                    if ((1 << (i - 1)) & RACEMASK_ALLIANCE)
+                    if ((1 << (i - 1)) & sRaceMgr->GetAllianceRaceMask())
                         allianceStarterPerLevelCache[(uint8)l].push_back(pos);
                     else
                         hordeStarterPerLevelCache[(uint8)l].push_back(pos);
@@ -2704,7 +2700,7 @@ std::vector<uint32> RandomPlayerbotMgr::GetBgBots(uint32 bracket)
         } while (result->NextRow());
     }
 
-    return std::move(BgBots);
+    return BgBots;
 }
 
 CachedEvent* RandomPlayerbotMgr::FindEvent(uint32 bot, std::string const& event)
@@ -3097,7 +3093,7 @@ void RandomPlayerbotMgr::OnPlayerLogin(Player* player)
                 FactionTemplateEntry const* factionEntry = sFactionTemplateStore.LookupEntry(cInfo->faction);
                 ReputationRank reaction = Unit::GetFactionReactionTo(player->GetFactionTemplateEntry(), factionEntry);
 
-                if (reaction > REP_NEUTRAL && dest->nearestPoint(&botPos)->m_mapId == player->GetMapId())
+                if (reaction > REP_NEUTRAL && dest->nearestPoint(&botPos)->GetMapId() == player->GetMapId())
                 {
                     botPos = *dest->nearestPoint(&botPos);
                     break;
@@ -3155,7 +3151,7 @@ void RandomPlayerbotMgr::PrintStats()
 
     std::map<uint8, uint32> lvlPerRace;
     std::map<uint8, uint32> lvlPerClass;
-    for (uint8 race = RACE_HUMAN; race < MAX_RACES; ++race)
+    for (uint8 race = RACE_HUMAN; race < sRaceMgr->GetMaxRaces(); ++race)
     {
         perRace[race] = 0;
         lvlPerRace[race] = 0;
@@ -3171,10 +3167,10 @@ void RandomPlayerbotMgr::PrintStats()
     uint32 heal = 0;
     uint32 tank = 0;
     uint32 active = 0;
-    uint32 update = 0;
+/*    uint32 update = 0;
     uint32 randomize = 0;
     uint32 teleport = 0;
-    uint32 changeStrategy = 0;
+    uint32 changeStrategy = 0;*/
     uint32 dead = 0;
     uint32 combat = 0;
     // uint32 revive = 0; //not used, line marked for removal.
@@ -3214,7 +3210,7 @@ void RandomPlayerbotMgr::PrintStats()
 
         if (botAI->AllowActivity())
             ++active;
-
+        /* TODO: Review statistics on rpg merge
         if (botAI->GetAiObjectContext()->GetValue<bool>("random bot update")->Get())
             ++update;
 
@@ -3227,7 +3223,7 @@ void RandomPlayerbotMgr::PrintStats()
 
         if (!GetEventValue(botId, "change_strategy"))
             ++changeStrategy;
-
+        */
         if (bot->isDead())
         {
             ++dead;
@@ -3235,40 +3231,38 @@ void RandomPlayerbotMgr::PrintStats()
             //++revive;
         }
         if (bot->IsInCombat())
-        {
             ++combat;
-        }
+
         if (bot->isMoving())
-        {
             ++moving;
-        }
+
         if (bot->IsInFlight())
-        {
             ++inFlight;
-        }
+
         if (bot->IsMounted())
-        {
             ++mounted;
-        }
+
         if (bot->InBattleground() || bot->InArena())
-        {
             ++inBg;
-        }
+
         if (bot->HasFlag(PLAYER_FLAGS, PLAYER_FLAGS_RESTING))
-        {
             ++rest;
-        }
+
         if (botAI->GetState() == BOT_STATE_NON_COMBAT)
             ++engine_noncombat;
+
         else if (botAI->GetState() == BOT_STATE_COMBAT)
             ++engine_combat;
+
         else
             ++engine_dead;
 
         if (botAI->IsHeal(bot, true))
             ++heal;
+
         else if (botAI->IsTank(bot, true))
             ++tank;
+
         else
             ++dps;
 
@@ -3276,7 +3270,7 @@ void RandomPlayerbotMgr::PrintStats()
 
         if (sPlayerbotAIConfig.enableNewRpgStrategy)
         {
-            rpgStatusCount[botAI->rpgInfo.status]++;
+            rpgStatusCount[botAI->rpgInfo.GetStatus()]++;
             rpgStasticTotal += botAI->rpgStatistic;
             botAI->rpgStatistic = NewRpgStatistic();
         }
@@ -3304,7 +3298,7 @@ void RandomPlayerbotMgr::PrintStats()
     }
 
     LOG_INFO("playerbots", "Bots race:");
-    for (uint8 race = RACE_HUMAN; race < MAX_RACES; ++race)
+    for (uint8 race = RACE_HUMAN; race < sRaceMgr->GetMaxRaces(); ++race)
     {
         if (perRace[race])
         {
