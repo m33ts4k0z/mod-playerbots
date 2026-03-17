@@ -86,23 +86,23 @@ void StatsCollector::CollectSpellStats(uint32 spellId, float multiplier, int32 s
     if (SpecialSpellFilter(spellId))
         return;
 
-    const SpellProcEventEntry* eventEntry = sSpellMgr->GetSpellProcEvent(spellInfo->Id);
+    auto const* procEvent = sSpellMgr->GetSpellProcEntry(spellInfo->Id);
 
-    uint32 triggerCooldown = eventEntry ? eventEntry->cooldown : 0;
+    uint32 triggerCooldown = procEvent ? static_cast<uint32>(procEvent->Cooldown.count()) : 0;
 
     bool canNextTrigger = true;
 
     uint32 procFlags;
-    uint32 procChance;
-    if (eventEntry && eventEntry->procFlags)
-        procFlags = eventEntry->procFlags;
+    float procChance;
+    if (procEvent && procEvent->ProcFlags)
+        procFlags = procEvent->ProcFlags;
     else
         procFlags = spellInfo->ProcFlags;
 
-    if (eventEntry && eventEntry->customChance)
-        procChance = eventEntry->customChance;
+    if (procEvent && procEvent->Chance > 0.0f)
+        procChance = procEvent->Chance;
     else
-        procChance = spellInfo->ProcChance;
+        procChance = static_cast<float>(spellInfo->ProcChance);
     bool lowChance = procChance <= 5;
 
     if (lowChance || (procFlags && !CanBeTriggeredByType(spellInfo, procFlags)))
@@ -357,12 +357,12 @@ bool StatsCollector::SpecialEnchantFilter(uint32 enchantSpellId)
 
 bool StatsCollector::CanBeTriggeredByType(SpellInfo const* spellInfo, uint32 procFlags, bool strict)
 {
-    const SpellProcEventEntry* eventEntry = sSpellMgr->GetSpellProcEvent(spellInfo->Id);
+    auto const* procEvent = sSpellMgr->GetSpellProcEntry(spellInfo->Id);
     uint32 spellFamilyName = 0;
-    if (eventEntry)
+    if (procEvent)
     {
-        spellFamilyName = eventEntry->spellFamilyName;
-        flag96 spellFamilyMask = eventEntry->spellFamilyMask;
+        spellFamilyName = procEvent->SpellFamilyName;
+        flag96 spellFamilyMask = procEvent->SpellFamilyMask;
         if (spellFamilyName != 0)
         {
             if (!CheckSpellValidation(spellFamilyName, spellFamilyMask, strict))

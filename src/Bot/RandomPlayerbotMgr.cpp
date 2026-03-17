@@ -13,6 +13,7 @@
 #include <ctime>
 #include <iomanip>
 #include <random>
+#include <unordered_set>
 
 #include "AiFactory.h"
 #include "Battleground.h"
@@ -555,6 +556,7 @@ void RandomPlayerbotMgr::AssignAccountTypes()
     }
 
     LOG_INFO("playerbots", "Found {} total randombot accounts in database", allRandomBotAccounts.size());
+    std::unordered_set<uint32> randomAccountSet(allRandomBotAccounts.begin(), allRandomBotAccounts.end());
 
     // Check existing assignments
     QueryResult existingAssignments = PlayerbotsDatabase.Query("SELECT account_id, account_type FROM playerbots_account_type");
@@ -567,6 +569,22 @@ void RandomPlayerbotMgr::AssignAccountTypes()
             Field* fields = existingAssignments->Fetch();
             uint32 accountId = fields[0].Get<uint32>();
             uint8 accountType = fields[1].Get<uint8>();
+            // Never keep non-randombot-prefix accounts assigned as rnd/addclass bot accounts.
+            if (randomAccountSet.find(accountId) == randomAccountSet.end())
+            {
+                if (accountType != 0)
+                {
+                    LOG_WARN("playerbots", "Resetting non-randombot account {} from type {} to type 0", accountId, accountType);
+                    PlayerbotsDatabase.Execute(
+                        "UPDATE playerbots_account_type SET account_type = 0, assignment_date = NOW() WHERE account_id = {}",
+                        accountId
+                    );
+                }
+
+                currentAssignments[accountId] = 0;
+                continue;
+            }
+
             currentAssignments[accountId] = accountType;
         } while (existingAssignments->NextRow());
     }
@@ -604,6 +622,9 @@ void RandomPlayerbotMgr::AssignAccountTypes()
 
     for (auto const& [accountId, accountType] : currentAssignments)
     {
+        if (randomAccountSet.find(accountId) == randomAccountSet.end())
+            continue;
+
         if (accountType == 1) existingRndBotAccounts++;
         else if (accountType == 2) existingAddClassAccounts++;
     }
@@ -659,13 +680,16 @@ void RandomPlayerbotMgr::AssignAccountTypes()
     // Populate filtered account lists with ALL accounts of each type
     for (auto const& [accountId, accountType] : currentAssignments)
     {
+        if (randomAccountSet.find(accountId) == randomAccountSet.end())
+            continue;
+
         if (accountType == 1) rndBotTypeAccounts.push_back(accountId);
         else if (accountType == 2) addClassTypeAccounts.push_back(accountId);
     }
 
     LOG_INFO("playerbots", "Account type assignment complete: {} RNDbot accounts, {} AddClass accounts, {} unassigned",
              rndBotTypeAccounts.size(), addClassTypeAccounts.size(),
-             currentAssignments.size() - rndBotTypeAccounts.size() - addClassTypeAccounts.size());
+             allRandomBotAccounts.size() - rndBotTypeAccounts.size() - addClassTypeAccounts.size());
 }
 
 bool RandomPlayerbotMgr::IsAccountType(uint32 accountId, uint8 accountType)

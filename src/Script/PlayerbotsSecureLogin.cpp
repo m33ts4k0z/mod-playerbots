@@ -52,15 +52,16 @@ public:
     PlayerbotsSecureLoginServerScript()
         : ServerScript("PlayerbotsSecureLoginServerScript", { SERVERHOOK_CAN_PACKET_RECEIVE }) {}
 
-    bool CanPacketReceive(WorldSession* /*session*/, WorldPacket& packet) override
+    bool CanPacketReceive(WorldSession* /*session*/, WorldPacket const& packet) override
     {
         if (packet.GetOpcode() != CMSG_PLAYER_LOGIN)
             return true;
 
-        auto const oldPos = packet.rpos();
+        WorldPacket packetCopy(packet);
+        auto const oldPos = packetCopy.rpos();
         ObjectGuid loginGuid;
-        packet >> loginGuid;
-        packet.rpos(oldPos);
+        packetCopy >> loginGuid;
+        packetCopy.rpos(oldPos);
 
         if (!loginGuid)
             return true;
