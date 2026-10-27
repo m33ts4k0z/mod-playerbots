@@ -1,10 +1,10 @@
 /*
- * Copyright (C) 2016+ AzerothCore <www.azerothcore.org>, released under GNU AGPL v3 license, you may redistribute it
- * and/or modify it under version 3 of the License, or (at your option), any later version.
+ * This file is part of the mod-playerbots module for AzerothCore. See AUTHORS file for Copyright
+ * information; released under GNU GPL v2 license, redistribute/modify under version 2 of the License,
+ * or (at your option) any later version.
  */
 
 #include "MoveToTravelTargetAction.h"
-
 #include "ChooseRpgTargetAction.h"
 #include "LootObjectStack.h"
 #include "Playerbots.h"
@@ -36,13 +36,14 @@ bool MoveToTravelTargetAction::Execute(Event /*event*/)
                 continue;
 
             WorldPosition memberPos(member);
-            WorldPosition targetPos = *target->getPosition();
+            // unused while the angle-based filter below stays commented out
+            [[maybe_unused]] WorldPosition targetPos = *target->getPosition();
 
             float memberDistance = botLocation.distance(memberPos);
 
             if (memberDistance < 50.0f)
                 continue;
-            if (memberDistance > sPlayerbotAIConfig.reactDistance * 20)
+            if (memberDistance > sPlayerbotAIConfig.ReactDistance * 20)
                 continue;
 
             // float memberAngle = botLocation.getAngleBetween(targetPos, memberPos);
@@ -64,9 +65,9 @@ bool MoveToTravelTargetAction::Execute(Event /*event*/)
                 botAI->TellMasterNoFacing(out);
             }
 
-            target->setExpireIn(target->getTimeLeft() + sPlayerbotAIConfig.maxWaitForMove);
+            target->setExpireIn(target->getTimeLeft() + sPlayerbotAIConfig.MaxWaitForMove);
 
-            botAI->SetNextCheckDelay(sPlayerbotAIConfig.maxWaitForMove);
+            botAI->SetNextCheckDelay(sPlayerbotAIConfig.MaxWaitForMove);
 
             return true;
         }
@@ -74,12 +75,22 @@ bool MoveToTravelTargetAction::Execute(Event /*event*/)
 
     float maxDistance = target->getDestination()->getRadiusMin();
 
-    // Evenly distribute around the target.
-    float angle = 2 * M_PI * urand(0, 100) / 100.0;
+    // Spread bots around the target but keep the offset stable per
+    // (bot, destination) pair. Previously the angle and radius were
+    // re-rolled every time the action re-entered (i.e. every tick the
+    // bot wasn't already moving), which made bots oscillate between
+    // two random points around the same quest POI instead of
+    // committing to one approach.
+    uint32 botLow = bot->GetGUID().GetCounter();
+    int32 destSeed = static_cast<int32>(location.GetPositionX()) * 73856093 ^
+                     static_cast<int32>(location.GetPositionY()) * 19349663;
+    uint32 seed = botLow ^ static_cast<uint32>(destSeed);
+    float angle = 2.0f * static_cast<float>(M_PI) * static_cast<float>(seed % 1000) / 1000.0f;
+    float mod = 0.5f + static_cast<float>((seed / 1000) % 1000) / 2000.0f;  // [0.5, 1.0]
 
     if (target->getMaxTravelTime() > target->getTimeLeft())  // The bot is late. Speed it up.
     {
-        // distance = sPlayerbotAIConfig.fleeDistance;
+        // distance = sPlayerbotAIConfig.FleeDistance;
         // angle = bot->GetAngle(location.GetPositionX(), location.GetPositionY());
         // location = botLocation.getLocation();
     }
@@ -88,9 +99,6 @@ bool MoveToTravelTargetAction::Execute(Event /*event*/)
     float y = location.GetPositionY();
     float z = location.GetPositionZ();
     float mapId = location.GetMapId();
-
-    // Move between 0.5 and 1.0 times the maxDistance.
-    float mod = frand(50.f, 100.f) / 100.0f;
 
     x += cos(angle) * maxDistance * mod;
     y += sin(angle) * maxDistance * mod;

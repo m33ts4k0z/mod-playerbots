@@ -1,8 +1,12 @@
+/*
+ * This file is part of the mod-playerbots module for AzerothCore. See AUTHORS file for Copyright
+ * information; released under GNU GPL v2 license, redistribute/modify under version 2 of the License,
+ * or (at your option) any later version.
+ */
+
 #include "NewRpgInfo.h"
-
-#include <cmath>
-
 #include "Timer.h"
+#include <cmath>
 
 void NewRpgInfo::ChangeToGoGrind(WorldPosition pos)
 {
@@ -28,7 +32,7 @@ void NewRpgInfo::ChangeToWanderRandom()
     data = WanderRandom{};
 }
 
-void NewRpgInfo::ChangeToDoQuest(uint32 questId, const Quest* quest)
+void NewRpgInfo::ChangeToDoQuest(uint32 questId, Quest const* quest)
 {
     startT = getMSTime();
     DoQuest do_quest;
@@ -37,15 +41,29 @@ void NewRpgInfo::ChangeToDoQuest(uint32 questId, const Quest* quest)
     data = do_quest;
 }
 
-void NewRpgInfo::ChangeToTravelFlight(ObjectGuid fromFlightMaster, uint32 fromNode, uint32 toNode)
+void NewRpgInfo::ChangeToTravelFlight(uint32 flightMasterEntry, WorldPosition flightMasterPos, std::vector<uint32> path)
 {
     startT = getMSTime();
     TravelFlight flight;
-    flight.fromFlightMaster = fromFlightMaster;
-    flight.fromNode = fromNode;
-    flight.toNode = toNode;
+    flight.flightMasterEntry = flightMasterEntry;
+    flight.flightMasterPos = flightMasterPos;
+    flight.path = std::move(path);
     flight.inFlight = false;
     data = flight;
+}
+
+void NewRpgInfo::ChangeToOutdoorPvp(ObjectGuid::LowType capturePointSpawnId)
+{
+    startT = getMSTime();
+    OutdoorPvP pvp;
+    pvp.capturePointSpawnId = capturePointSpawnId;
+    data = pvp;
+}
+
+void NewRpgInfo::ChangeToDoGather()
+{
+    startT = getMSTime();
+    data = DoGather{};
 }
 
 void NewRpgInfo::ChangeToRest()
@@ -79,6 +97,21 @@ void NewRpgInfo::SetMoveFarTo(WorldPosition pos)
     moveFarPos = pos;
 }
 
+NewRpgStatus NewRpgInfo::StatusFromString(std::string const& name)
+{
+    if (name == "idle")           return RPG_IDLE;
+    if (name == "rest")           return RPG_REST;
+    if (name == "wander random")  return RPG_WANDER_RANDOM;
+    if (name == "wander npc")     return RPG_WANDER_NPC;
+    if (name == "go grind")       return RPG_GO_GRIND;
+    if (name == "go camp")        return RPG_GO_CAMP;
+    if (name == "do quest")       return RPG_DO_QUEST;
+    if (name == "travel flight")  return RPG_TRAVEL_FLIGHT;
+    if (name == "outdoor pvp")    return RPG_OUTDOOR_PVP;
+    if (name == "do gather")      return RPG_DO_GATHER;
+    return RPG_STATUS_END;
+}
+
 NewRpgStatus NewRpgInfo::GetStatus()
 {
     return std::visit([](auto&& arg) -> NewRpgStatus {
@@ -91,6 +124,8 @@ NewRpgStatus NewRpgInfo::GetStatus()
         if constexpr (std::is_same_v<T, Rest>) return RPG_REST;
         if constexpr (std::is_same_v<T, DoQuest>) return RPG_DO_QUEST;
         if constexpr (std::is_same_v<T, TravelFlight>) return RPG_TRAVEL_FLIGHT;
+        if constexpr (std::is_same_v<T, OutdoorPvP>) return RPG_OUTDOOR_PVP;
+        if constexpr (std::is_same_v<T, DoGather>) return RPG_DO_GATHER;
         return RPG_IDLE;
     }, data);
 }
@@ -119,7 +154,8 @@ std::string NewRpgInfo::ToString()
         else if constexpr (std::is_same_v<T, WanderNpc>)
         {
             out << "WANDER_NPC";
-            out << "\nnpcOrGoEntry: " << arg.npcOrGo.GetCounter();
+            out << "\nnpcOrGo: entry " << arg.npcOrGo.GetEntry() << " (guid " << arg.npcOrGo.GetCounter()
+                << ")";
             out << "\nlastWanderNpc: " << startT;
             out << "\nlastReachNpcOrGo: " << arg.lastReach;
         }
@@ -149,10 +185,27 @@ std::string NewRpgInfo::ToString()
         else if constexpr (std::is_same_v<T, TravelFlight>)
         {
             out << "TRAVEL_FLIGHT";
-            out << "\nfromFlightMaster: " << arg.fromFlightMaster.GetEntry();
-            out << "\nfromNode: " << arg.fromNode;
-            out << "\ntoNode: " << arg.toNode;
+            out << "\nflightMasterEntry: " << arg.flightMasterEntry;
+            out << "\nfromNode: " << arg.path[0];
+            out << "\ntoNode: " << arg.path[arg.path.size() - 1];
             out << "\ninFlight: " << arg.inFlight;
+        }
+        else if constexpr (std::is_same_v<T, OutdoorPvP>)
+        {
+            out << "OUTDOOR_PVP";
+            if (!arg.capturePointSpawnId)
+                out << "\nNo capture point assigned.";
+            else
+                out << "\ncapturePointSpawnId: " << arg.capturePointSpawnId;
+        }
+        else if constexpr (std::is_same_v<T, DoGather>)
+        {
+            out << "DO_GATHER";
+            out << "\nnodeSpawnId: " << arg.nodeSpawnId;
+            out << "\nnodePos: " << arg.nodePos.GetMapId() << " " << arg.nodePos.GetPositionX() << " "
+                << arg.nodePos.GetPositionY() << " " << arg.nodePos.GetPositionZ();
+            out << "\nvisited: " << arg.visited.size();
+            out << "\nlastReach: " << (arg.lastReach ? GetMSTimeDiffToNow(arg.lastReach) : 0);
         }
         else
             out << "UNKNOWN";

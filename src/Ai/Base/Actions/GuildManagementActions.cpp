@@ -1,15 +1,15 @@
 /*
- * Copyright (C) 2016+ AzerothCore <www.azerothcore.org>, released under GNU AGPL v3 license, you may redistribute it
- * and/or modify it under version 3 of the License, or (at your option), any later version.
+ * This file is part of the mod-playerbots module for AzerothCore. See AUTHORS file for Copyright
+ * information; released under GNU GPL v2 license, redistribute/modify under version 2 of the License,
+ * or (at your option) any later version.
  */
 
 #include "GuildManagementActions.h"
-
+#include "BroadcastHelper.h"
 #include "GuildMgr.h"
 #include "GuildPackets.h"
 #include "Playerbots.h"
 #include "ServerFacade.h"
-#include "BroadcastHelper.h"
 
 Player* GuidManageAction::GetPlayer(Event event)
 {
@@ -170,7 +170,7 @@ bool GuildManageNearbyAction::Execute(Event /*event*/)
             continue;
         }
 
-        if (!sPlayerbotAIConfig.randomBotGuildNearby)
+        if (!sPlayerbotAIConfig.RandomBotGuildNearby)
             return false;
 
         if (guild->GetMemberSize() > 1000)
@@ -184,24 +184,24 @@ bool GuildManageNearbyAction::Execute(Event /*event*/)
 
         PlayerbotAI* botAi = GET_PLAYERBOT_AI(player);
 
-        if (!sPlayerbotAIConfig.randomBotInvitePlayer && botAi && botAi->IsRealPlayer())
+        if (!sPlayerbotAIConfig.RandomBotInvitePlayer && botAi && IsSelfBot(player))
             continue;
 
         if (botAi)
         {
-            if (botAi->GetGuilderType() == GuilderType::SOLO && !botAi->HasRealPlayerMaster()) //Do not invite solo players.
+            if (botAi->GetGuilderType() == GuilderType::SOLO && !botAi->HasGameClientMaster()) // Do not invite solo players.
                 continue;
 
-            if (botAi->HasActivePlayerMaster() && !sRandomPlayerbotMgr.IsRandomBot(player)) //Do not invite alts of active players.
+            if (IsRealPlayer(botAi->GetMaster()) && !sRandomPlayerbotMgr.IsRandomBot(player)) // Do not invite bots that belong to an active player.
                 continue;
         }
 
         bool sameGroup = bot->GetGroup() && bot->GetGroup()->IsMember(player->GetGUID());
 
-        if (!sameGroup && ServerFacade::instance().GetDistance2d(bot, player) > sPlayerbotAIConfig.spellDistance)
+        if (!sameGroup && ServerFacade::instance().GetDistance2d(bot, player) > sPlayerbotAIConfig.SpellDistance)
             continue;
 
-        if (sPlayerbotAIConfig.inviteChat && (sRandomPlayerbotMgr.IsRandomBot(bot) || !botAI->HasActivePlayerMaster()))
+        if (sPlayerbotAIConfig.InviteChat && (sRandomPlayerbotMgr.IsRandomBot(bot) || !IsRealPlayer(botAI->GetMaster())))
         {
             /* std::map<std::string, std::string> placeholders;
             placeholders["%name"] = player->GetName();
@@ -273,7 +273,7 @@ bool GuildManageNearbyAction::Execute(Event /*event*/)
 
         if (botAI->DoSpecificAction("guild invite", Event("guild management", guid), true))
         {
-            if (sPlayerbotAIConfig.inviteChat)
+            if (sPlayerbotAIConfig.InviteChat)
                 return true;
             found++;
         }

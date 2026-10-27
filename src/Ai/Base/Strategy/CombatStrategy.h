@@ -1,10 +1,11 @@
 /*
- * Copyright (C) 2016+ AzerothCore <www.azerothcore.org>, released under GNU AGPL v3 license, you may redistribute it
- * and/or modify it under version 3 of the License, or (at your option), any later version.
+ * This file is part of the mod-playerbots module for AzerothCore. See AUTHORS file for Copyright
+ * information; released under GNU GPL v2 license, redistribute/modify under version 2 of the License,
+ * or (at your option) any later version.
  */
 
-#ifndef _PLAYERBOT_COMBATSTRATEGY_H
-#define _PLAYERBOT_COMBATSTRATEGY_H
+#ifndef PLAYERBOTS_COMBATSTRATEGY_H
+#define PLAYERBOTS_COMBATSTRATEGY_H
 
 #include "Strategy.h"
 
@@ -22,7 +23,7 @@ public:
 class AvoidAoeStrategy : public Strategy
 {
 public:
-    explicit AvoidAoeStrategy(PlayerbotAI* ai);
+    explicit AvoidAoeStrategy(PlayerbotAI* botAI);
     const std::string getName() override { return "avoid aoe"; }
     std::vector<NextAction> getDefaultActions() override;
     void InitMultipliers(std::vector<Multiplier*>& multipliers) override;
@@ -32,7 +33,7 @@ public:
 class TankFaceStrategy : public Strategy
 {
 public:
-    explicit TankFaceStrategy(PlayerbotAI* ai);
+    explicit TankFaceStrategy(PlayerbotAI* botAI);
     const std::string getName() override { return "tank face"; }
     std::vector<NextAction> getDefaultActions() override;
     void InitTriggers(std::vector<TriggerNode*>& triggers) override;
@@ -41,7 +42,7 @@ public:
 class CombatFormationStrategy : public Strategy
 {
 public:
-    CombatFormationStrategy(PlayerbotAI* ai) : Strategy(ai) {}
+    CombatFormationStrategy(PlayerbotAI* botAI) : Strategy(botAI) {}
     const std::string getName() override { return "formation"; }
     std::vector<NextAction> getDefaultActions() override;
 };

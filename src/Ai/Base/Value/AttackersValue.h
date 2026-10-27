@@ -1,10 +1,11 @@
 /*
- * Copyright (C) 2016+ AzerothCore <www.azerothcore.org>, released under GNU AGPL v3 license, you may redistribute it
- * and/or modify it under version 3 of the License, or (at your option), any later version.
+ * This file is part of the mod-playerbots module for AzerothCore. See AUTHORS file for Copyright
+ * information; released under GNU GPL v2 license, redistribute/modify under version 2 of the License,
+ * or (at your option) any later version.
  */
 
-#ifndef _PLAYERBOT_ATTACKERSVALUE_H
-#define _PLAYERBOT_ATTACKERSVALUE_H
+#ifndef PLAYERBOTS_ATTACKERSVALUE_H
+#define PLAYERBOTS_ATTACKERSVALUE_H
 
 #include "PlayerbotAIConfig.h"
 #include "Value.h"
@@ -17,10 +18,10 @@ class Unit;
 class AttackersValue : public ObjectGuidListCalculatedValue
 {
 public:
-    AttackersValue(PlayerbotAI* botAI) : ObjectGuidListCalculatedValue(botAI, "attackers", 1 * 1000) {}
+    AttackersValue(PlayerbotAI* botAI) : ObjectGuidListCalculatedValue(botAI, "attackers", 1 * IN_MILLISECONDS) {}
 
     GuidVector Calculate();
-    static bool IsPossibleTarget(Unit* attacker, Player* bot, float range = sPlayerbotAIConfig.sightDistance);
+    static bool IsPossibleTarget(Unit* attacker, Player* bot, float range = sPlayerbotAIConfig.SightDistance);
     static bool IsValidTarget(Unit* attacker, Player* bot);
 
 private:

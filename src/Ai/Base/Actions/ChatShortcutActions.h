@@ -1,10 +1,11 @@
 /*
- * Copyright (C) 2016+ AzerothCore <www.azerothcore.org>, released under GNU AGPL v3 license, you may redistribute it
- * and/or modify it under version 3 of the License, or (at your option), any later version.
+ * This file is part of the mod-playerbots module for AzerothCore. See AUTHORS file for Copyright
+ * information; released under GNU GPL v2 license, redistribute/modify under version 2 of the License,
+ * or (at your option) any later version.
  */
 
-#ifndef _PLAYERBOT_CHATSHORTCUTACTION_H
-#define _PLAYERBOT_CHATSHORTCUTACTION_H
+#ifndef PLAYERBOTS_CHATSHORTCUTACTIONS_H
+#define PLAYERBOTS_CHATSHORTCUTACTIONS_H
 
 #include "MovementActions.h"
 
@@ -27,6 +28,7 @@ public:
     FollowChatShortcutAction(PlayerbotAI* botAI) : MovementAction(botAI, "follow chat shortcut") {}
 
     bool Execute(Event event) override;
+    bool isUsefulWithoutControl() override { return true; }
 };
 
 class StayChatShortcutAction : public PositionsResetAction
@@ -35,6 +37,7 @@ public:
     StayChatShortcutAction(PlayerbotAI* botAI) : PositionsResetAction(botAI, "stay chat shortcut") {}
 
     bool Execute(Event event) override;
+    bool isUsefulWithoutControl() override { return true; }
 };
 
 class MoveFromGroupChatShortcutAction : public Action
@@ -51,6 +54,7 @@ public:
     FleeChatShortcutAction(PlayerbotAI* botAI) : PositionsResetAction(botAI, "flee chat shortcut") {}
 
     bool Execute(Event event) override;
+    bool isUsefulWithoutControl() override { return true; }
 };
 
 class GoawayChatShortcutAction : public PositionsResetAction
@@ -67,6 +71,7 @@ public:
     GrindChatShortcutAction(PlayerbotAI* botAI) : PositionsResetAction(botAI, "grind chat shortcut") {}
 
     bool Execute(Event event) override;
+    bool isUsefulWithoutControl() override { return true; }
 };
 
 class TankAttackChatShortcutAction : public PositionsResetAction
@@ -88,14 +93,14 @@ public:
 class NaxxChatShortcutAction : public Action
 {
 public:
-    NaxxChatShortcutAction(PlayerbotAI* ai) : Action(ai, "naxx chat shortcut") {}
+    NaxxChatShortcutAction(PlayerbotAI* botAI) : Action(botAI, "naxx chat shortcut") {}
     virtual bool Execute(Event event);
 };
 
 class BwlChatShortcutAction : public Action
 {
 public:
-    BwlChatShortcutAction(PlayerbotAI* ai) : Action(ai, "bwl chat shortcut") {}
+    BwlChatShortcutAction(PlayerbotAI* botAI) : Action(botAI, "bwl chat shortcut") {}
     virtual bool Execute(Event event);
 };
 #endif

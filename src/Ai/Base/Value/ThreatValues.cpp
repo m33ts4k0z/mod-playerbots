@@ -1,12 +1,12 @@
 /*
- * Copyright (C) 2016+ AzerothCore <www.azerothcore.org>, released under GNU AGPL v3 license, you may redistribute it
- * and/or modify it under version 3 of the License, or (at your option), any later version.
+ * This file is part of the mod-playerbots module for AzerothCore. See AUTHORS file for Copyright
+ * information; released under GNU GPL v2 license, redistribute/modify under version 2 of the License,
+ * or (at your option) any later version.
  */
 
 #include "ThreatValues.h"
-
 #include "Playerbots.h"
-#include "ThreatMgr.h"
+#include "ThreatManager.h"
 
 uint8 ThreatValue::Calculate()
 {
@@ -54,7 +54,7 @@ uint8 ThreatValue::Calculate(Unit* target)
         if (!player || !player->IsAlive() || player == bot)
             continue;
 
-        if (botAI->IsTank(player))
+        if (PlayerbotAI::IsTank(player))
         {
             hasTank = true;
             float threat = target->GetThreatMgr().GetThreat(player);

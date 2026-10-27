@@ -1,10 +1,10 @@
 /*
- * Copyright (C) 2016+ AzerothCore <www.azerothcore.org>, released under GNU AGPL v3 license, you may redistribute it
- * and/or modify it under version 3 of the License, or (at your option), any later version.
+ * This file is part of the mod-playerbots module for AzerothCore. See AUTHORS file for Copyright
+ * information; released under GNU GPL v2 license, redistribute/modify under version 2 of the License,
+ * or (at your option) any later version.
  */
 
 #include "Stances.h"
-
 #include "Arrow.h"
 #include "Event.h"
 #include "Playerbots.h"
@@ -48,7 +48,7 @@ WorldLocation Stance::GetNearLocation(float angle, float distance)
 WorldLocation MoveStance::GetLocationInternal()
 {
     Unit* target = GetTarget();
-    float distance = std::max(sPlayerbotAIConfig.meleeDistance, target->GetCombatReach());
+    float distance = std::max(sPlayerbotAIConfig.MeleeDistance, target->GetCombatReach());
 
     float angle = GetAngle();
     return GetNearLocation(angle, distance);
@@ -56,7 +56,7 @@ WorldLocation MoveStance::GetLocationInternal()
 
 std::string const Stance::GetTargetName() { return "current target"; }
 
-float Stance::GetMaxDistance() { return sPlayerbotAIConfig.contactDistance; }
+float Stance::GetMaxDistance() { return sPlayerbotAIConfig.ContactDistance; }
 
 StanceValue::~StanceValue()
 {
@@ -93,7 +93,7 @@ public:
                     if (member == bot)
                         index = count;
 
-                    if (member && !botAI->IsRanged(member) && !botAI->IsTank(member))
+                    if (member && !PlayerbotAI::IsRanged(member) && !PlayerbotAI::IsTank(member))
                         count++;
                 }
             }
@@ -142,7 +142,7 @@ public:
             for (GroupReference* ref = group->GetFirstMember(); ref; ref = ref->next())
             {
                 if (Player* member = ref->GetSource())
-                    if (member != bot && botAI->IsRanged(member))
+                    if (member != bot && PlayerbotAI::IsRanged(member))
                     {
                         angle += target->GetAngle(member);
                         ++count;
@@ -177,7 +177,7 @@ public:
                     if (member == bot)
                         index = count;
 
-                    if (!botAI->IsRanged(member) && !botAI->IsTank(member))
+                    if (!PlayerbotAI::IsRanged(member) && !PlayerbotAI::IsTank(member))
                         ++count;
                 }
             }

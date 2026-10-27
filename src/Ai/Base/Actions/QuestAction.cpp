@@ -1,12 +1,11 @@
 /*
- * Copyright (C) 2016+ AzerothCore <www.azerothcore.org>, released under GNU AGPL v3 license, you may redistribute it
- * and/or modify it under version 3 of the License, or (at your option), any later version.
+ * This file is part of the mod-playerbots module for AzerothCore. See AUTHORS file for Copyright
+ * information; released under GNU GPL v2 license, redistribute/modify under version 2 of the License,
+ * or (at your option) any later version.
  */
 
 #include "QuestAction.h"
-#include <sstream>
-#include <algorithm>
-
+#include "BroadcastHelper.h"
 #include "Chat.h"
 #include "ChatHelper.h"
 #include "Event.h"
@@ -16,7 +15,8 @@
 #include "Playerbots.h"
 #include "ReputationMgr.h"
 #include "ServerFacade.h"
-#include "BroadcastHelper.h"
+#include <algorithm>
+#include <sstream>
 
 bool QuestAction::Execute(Event event)
 {
@@ -184,7 +184,7 @@ bool QuestAction::ProcessQuests(WorldObject* questGiver)
 {
     ObjectGuid guid = questGiver->GetGUID();
 
-    if (bot->GetDistance(questGiver) > INTERACTION_DISTANCE && !sPlayerbotAIConfig.syncQuestWithPlayer)
+    if (bot->GetDistance(questGiver) > INTERACTION_DISTANCE && !sPlayerbotAIConfig.SyncQuestWithPlayer)
     {
         //if (botAI->HasStrategy("debug", BotState::BOT_STATE_COMBAT) || botAI->HasStrategy("debug", BotState::BOT_STATE_NON_COMBAT))
 
@@ -192,7 +192,7 @@ bool QuestAction::ProcessQuests(WorldObject* questGiver)
         return false;
     }
 
-    if (!bot->HasInArc(CAST_ANGLE_IN_FRONT, questGiver, sPlayerbotAIConfig.sightDistance))
+    if (!bot->HasInArc(CAST_ANGLE_IN_FRONT, questGiver, sPlayerbotAIConfig.SightDistance))
         bot->SetFacingToObject(questGiver);
 
     bot->SetTarget(guid);
@@ -240,7 +240,7 @@ bool QuestAction::AcceptQuest(Quest const* quest, ObjectGuid questGiver)
         p.rpos(0);
         bot->GetSession()->HandleQuestgiverAcceptQuestOpcode(p);
 
-        if (bot->GetQuestStatus(questId) == QUEST_STATUS_NONE && sPlayerbotAIConfig.syncQuestWithPlayer)
+        if (bot->GetQuestStatus(questId) == QUEST_STATUS_NONE && sPlayerbotAIConfig.SyncQuestWithPlayer)
         {
             Object* pObject = ObjectAccessor::GetObjectByTypeMask(*bot, questGiver,
                                                                   TYPEMASK_UNIT | TYPEMASK_GAMEOBJECT | TYPEMASK_ITEM);
@@ -309,14 +309,14 @@ bool QuestUpdateAddKillAction::Execute(Event event)
     uint32 entry, questId, available, required;
     p >> questId >> entry >> available >> required;
     // LOG_INFO("playerbots", "[New rpg] Quest {} -> Creature {} ({}/{})", questId, entry, available, required);
-    const Quest* qInfo = sObjectMgr->GetQuestTemplate(questId);
+    Quest const* qInfo = sObjectMgr->GetQuestTemplate(questId);
     if (qInfo && (entry & 0x80000000))
     {
         entry &= 0x7FFFFFFF;
-        const GameObjectTemplate* info = sObjectMgr->GetGameObjectTemplate(entry);
+        GameObjectTemplate const* info = sObjectMgr->GetGameObjectTemplate(entry);
         if (info)
         {
-            std::string infoName = botAI->GetLocalizedGameObjectName(entry);
+            std::string infoName = PlayerbotAI::GetLocalizedGameObjectName(entry);
             BroadcastHelper::BroadcastQuestUpdateAddKill(botAI, bot, qInfo, available, required, infoName);
             if (botAI->GetMaster())
             {
@@ -331,7 +331,7 @@ bool QuestUpdateAddKillAction::Execute(Event event)
         CreatureTemplate const* info = sObjectMgr->GetCreatureTemplate(entry);
         if (info)
         {
-            std::string infoName = botAI->GetLocalizedCreatureName(entry);
+            std::string infoName = PlayerbotAI::GetLocalizedCreatureName(entry);
             BroadcastHelper::BroadcastQuestUpdateAddKill(botAI, bot, qInfo, available, required, infoName);
             if (botAI->GetMaster())
             {
@@ -392,7 +392,7 @@ bool QuestItemPushResultAction::Execute(Event event)
     if (guid != bot->GetGUID())
         return false;
 
-    const ItemTemplate* proto = sObjectMgr->GetItemTemplate(itemEntry);
+    ItemTemplate const* proto = sObjectMgr->GetItemTemplate(itemEntry);
     if (!proto)
         return false;
 
@@ -402,7 +402,7 @@ bool QuestItemPushResultAction::Execute(Event event)
         if (!questId)
             continue;
 
-        const Quest* quest = sObjectMgr->GetQuestTemplate(questId);
+        Quest const* quest = sObjectMgr->GetQuestTemplate(questId);
         if (!quest)
             return false;
 
@@ -413,7 +413,7 @@ bool QuestItemPushResultAction::Execute(Event event)
                 continue;
 
             int32 previousCount = itemCount - count;
-            if (itemId == itemEntry && previousCount < quest->RequiredItemCount[i])
+            if (itemId == itemEntry && uint32(previousCount) < quest->RequiredItemCount[i])
             {
                 if (botAI->GetMaster())
                 {

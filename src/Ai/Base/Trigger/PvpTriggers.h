@@ -1,10 +1,11 @@
 /*
- * Copyright (C) 2016+ AzerothCore <www.azerothcore.org>, released under GNU AGPL v3 license, you may redistribute it
- * and/or modify it under version 3 of the License, or (at your option), any later version.
+ * This file is part of the mod-playerbots module for AzerothCore. See AUTHORS file for Copyright
+ * information; released under GNU GPL v2 license, redistribute/modify under version 2 of the License,
+ * or (at your option) any later version.
  */
 
-#ifndef _PLAYERBOT_PVPTRIGGERS_H
-#define _PLAYERBOT_PVPTRIGGERS_H
+#ifndef PLAYERBOTS_PVPTRIGGERS_H
+#define PLAYERBOTS_PVPTRIGGERS_H
 
 #include "Trigger.h"
 
@@ -136,14 +137,6 @@ class InVehicleTrigger : public Trigger
 {
 public:
     InVehicleTrigger(PlayerbotAI* botAI) : Trigger(botAI, "in vehicle") {}
-
-    bool IsActive() override;
-};
-
-class AllianceNoSnowfallGY : public Trigger
-{
-public:
-    AllianceNoSnowfallGY(PlayerbotAI* botAI) : Trigger(botAI, "alliance no snowfall gy") {}
 
     bool IsActive() override;
 };

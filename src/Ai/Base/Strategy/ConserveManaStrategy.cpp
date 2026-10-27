@@ -1,10 +1,10 @@
 /*
- * Copyright (C) 2016+ AzerothCore <www.azerothcore.org>, released under GNU AGPL v3 license, you may redistribute it
- * and/or modify it under version 3 of the License, or (at your option), any later version.
+ * This file is part of the mod-playerbots module for AzerothCore. See AUTHORS file for Copyright
+ * information; released under GNU GPL v2 license, redistribute/modify under version 2 of the License,
+ * or (at your option) any later version.
  */
 
 #include "ConserveManaStrategy.h"
-
 #include "GenericSpellActions.h"
 #include "LastSpellCastValue.h"
 #include "PlayerbotAIConfig.h"
@@ -19,9 +19,9 @@
 //     uint8 targetHealth = AI_VALUE2(uint8, "health", "current target");
 //     uint8 mana = AI_VALUE2(uint8, "mana", "self target");
 //     bool hasMana = AI_VALUE2(bool, "has mana", "self target");
-//     bool mediumMana = hasMana && mana < sPlayerbotAIConfig.mediumMana;
+//     bool mediumMana = hasMana && mana < sPlayerbotAIConfig.MediumMana;
 
-//     if (health < sPlayerbotAIConfig.lowHealth)
+//     if (health < sPlayerbotAIConfig.LowHealth)
 //         return 1.0f;
 
 //     Unit* target = AI_VALUE(Unit*, "current target");
@@ -92,7 +92,7 @@
 float HealerAutoSaveManaMultiplier::GetValue(Action* action)
 {
     uint8 mana = bot->GetPowerPct(Powers::POWER_MANA);
-    if (mana > sPlayerbotAIConfig.saveManaThreshold)
+    if (mana > sPlayerbotAIConfig.SaveManaThreshold)
         return 1.0f;
     CastHealingSpellAction* healingAction = dynamic_cast<CastHealingSpellAction*>(action);
 
@@ -102,7 +102,7 @@ float HealerAutoSaveManaMultiplier::GetValue(Action* action)
     Unit* target = healingAction->GetTarget();
     if (!target)
         return 1.0f;
-    bool isTank = target->ToPlayer() ? botAI->IsTank(target->ToPlayer()) : false;
+    bool isTank = target->ToPlayer() ? PlayerbotAI::IsTank(target->ToPlayer()) : false;
     uint8 health = target->GetHealthPct();
     HealingManaEfficiency manaEfficiency = healingAction->manaEfficiency;
     uint8 estAmount = healingAction->estAmount;
@@ -110,16 +110,16 @@ float HealerAutoSaveManaMultiplier::GetValue(Action* action)
     if (isTank)
     {
         estAmount /= 1.5;  // tanks have more health
-        if (health >= sPlayerbotAIConfig.mediumHealth &&
+        if (health >= sPlayerbotAIConfig.MediumHealth &&
             (lossAmount < estAmount || manaEfficiency <= HealingManaEfficiency::MEDIUM))
             return 0.0f;
-        if (health >= sPlayerbotAIConfig.lowHealth &&
+        if (health >= sPlayerbotAIConfig.LowHealth &&
             (lossAmount < estAmount || manaEfficiency <= HealingManaEfficiency::LOW))
             return 0.0f;
     }
     else
     {
-        if (health >= sPlayerbotAIConfig.mediumHealth &&
+        if (health >= sPlayerbotAIConfig.MediumHealth &&
             (lossAmount < estAmount || manaEfficiency <= HealingManaEfficiency::MEDIUM))
             return 0.0f;
         if (lossAmount < estAmount || manaEfficiency <= HealingManaEfficiency::LOW)

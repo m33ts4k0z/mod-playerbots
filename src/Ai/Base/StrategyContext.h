@@ -1,16 +1,18 @@
 /*
- * Copyright (C) 2016+ AzerothCore <www.azerothcore.org>, released under GNU AGPL v3 license, you may redistribute it
- * and/or modify it under version 3 of the License, or (at your option), any later version.
+ * This file is part of the mod-playerbots module for AzerothCore. See AUTHORS file for Copyright
+ * information; released under GNU GPL v2 license, redistribute/modify under version 2 of the License,
+ * or (at your option) any later version.
  */
 
-#ifndef _PLAYERBOT_STRATEGYCONTEXT_H
-#define _PLAYERBOT_STRATEGYCONTEXT_H
+#ifndef PLAYERBOTS_STRATEGYCONTEXT_H
+#define PLAYERBOTS_STRATEGYCONTEXT_H
 
 #include "AggressiveStrategy.h"
 #include "AttackEnemyPlayersStrategy.h"
 #include "BattlegroundStrategy.h"
 #include "CastTimeStrategy.h"
 #include "ChatCommandHandlerStrategy.h"
+#include "CombatStrategy.h"
 #include "ConserveManaStrategy.h"
 #include "CustomStrategy.h"
 #include "DeadStrategy.h"
@@ -18,8 +20,9 @@
 #include "DpsAssistStrategy.h"
 #include "DuelStrategy.h"
 #include "EmoteStrategy.h"
-#include "FleeStrategy.h"
+#include "FocusTargetStrategy.h"
 #include "FollowMasterStrategy.h"
+#include "ForceRebuff.h"
 #include "GrindingStrategy.h"
 #include "GroupStrategy.h"
 #include "GuardStrategy.h"
@@ -40,6 +43,7 @@
 #include "RTSCStrategy.h"
 #include "RacialsStrategy.h"
 #include "RangedCombatStrategy.h"
+#include "ReactionStrategy.h"
 #include "ReturnStrategy.h"
 #include "RpgStrategy.h"
 #include "RunawayStrategy.h"
@@ -50,6 +54,7 @@
 #include "TravelStrategy.h"
 #include "UseFoodStrategy.h"
 #include "UsePotionsStrategy.h"
+#include "WaitForAttackStrategy.h"
 #include "WorldPacketHandlerStrategy.h"
 
 class StrategyContext : public NamedObjectContext<Strategy>
@@ -68,12 +73,13 @@ public:
         creators["chat"] = &StrategyContext::chat;
         creators["default"] = &StrategyContext::world_packet;
         creators["ready check"] = &StrategyContext::ready_check;
+        creators["force rebuff"] = &StrategyContext::force_rebuff;
         creators["dead"] = &StrategyContext::dead;
-        creators["flee"] = &StrategyContext::flee;
         creators["duel"] = &StrategyContext::duel;
         creators["start duel"] = &StrategyContext::start_duel;
         creators["kite"] = &StrategyContext::kite;
         creators["potions"] = &StrategyContext::potions;
+        creators["react"] = &StrategyContext::react;
         creators["cast time"] = &StrategyContext::cast_time;
         creators["threat"] = &StrategyContext::threat;
         creators["focus"] = &StrategyContext::focus;
@@ -93,6 +99,7 @@ public:
         creators["sit"] = &StrategyContext::sit;
         creators["mark rti"] = &StrategyContext::mark_rti;
         creators["adds"] = &StrategyContext::possible_adds;
+        creators["pull back"] = &StrategyContext::pull_back;
         creators["close"] = &StrategyContext::close;
         creators["ranged"] = &StrategyContext::ranged;
         creators["behind"] = &StrategyContext::behind;
@@ -124,6 +131,8 @@ public:
         creators["worldbuff"] = &StrategyContext::world_buff;
         creators["use bobber"] = &StrategyContext::bobber_strategy;
         creators["master fishing"] = &StrategyContext::master_fishing;
+        creators["wait for attack"] = &StrategyContext::wait_for_attack;
+        creators["focus heal targets"] = &StrategyContext::focus_heal_targets;
     }
 
 private:
@@ -136,10 +145,10 @@ private:
     static Strategy* focus(PlayerbotAI* botAI) { return new FocusStrategy(botAI); }
     static Strategy* cast_time(PlayerbotAI* botAI) { return new CastTimeStrategy(botAI); }
     static Strategy* potions(PlayerbotAI* botAI) { return new UsePotionsStrategy(botAI); }
+    static Strategy* react(PlayerbotAI* botAI) { return new ReactionStrategy(botAI); }
     static Strategy* kite(PlayerbotAI* botAI) { return new KiteStrategy(botAI); }
     static Strategy* duel(PlayerbotAI* botAI) { return new DuelStrategy(botAI); }
     static Strategy* start_duel(PlayerbotAI* botAI) { return new StartDuelStrategy(botAI); }
-    static Strategy* flee(PlayerbotAI* botAI) { return new FleeStrategy(botAI); }
     static Strategy* dead(PlayerbotAI* botAI) { return new DeadStrategy(botAI); }
     static Strategy* racials(PlayerbotAI* botAI) { return new RacialsStrategy(botAI); }
     static Strategy* loot(PlayerbotAI* botAI) { return new LootNonCombatStrategy(botAI); }
@@ -153,6 +162,7 @@ private:
     static Strategy* chat(PlayerbotAI* botAI) { return new ChatCommandHandlerStrategy(botAI); }
     static Strategy* world_packet(PlayerbotAI* botAI) { return new WorldPacketHandlerStrategy(botAI); }
     static Strategy* ready_check(PlayerbotAI* botAI) { return new ReadyCheckStrategy(botAI); }
+    static Strategy* force_rebuff(PlayerbotAI* botAI) { return new ForceRebuffStrategy(botAI); }
     static Strategy* pvp(PlayerbotAI* botAI) { return new AttackEnemyPlayersStrategy(botAI); }
     static Strategy* _return(PlayerbotAI* botAI) { return new ReturnStrategy(botAI); }
     static Strategy* lfg(PlayerbotAI* botAI) { return new LfgStrategy(botAI); }
@@ -167,6 +177,7 @@ private:
     static Strategy* map_full(PlayerbotAI* botAI) { return new MapFullStrategy(botAI); }
     static Strategy* sit(PlayerbotAI* botAI) { return new SitStrategy(botAI); }
     static Strategy* possible_adds(PlayerbotAI* botAI) { return new PossibleAddsStrategy(botAI); }
+    static Strategy* pull_back(PlayerbotAI* botAI) { return new PullBackStrategy(botAI); }
     static Strategy* mount(PlayerbotAI* botAI) { return new MountStrategy(botAI); }
     static Strategy* bg(PlayerbotAI* botAI) { return new BGStrategy(botAI); }
     static Strategy* battleground(PlayerbotAI* botAI) { return new BattlegroundStrategy(botAI); }
@@ -195,6 +206,8 @@ private:
     static Strategy* world_buff(PlayerbotAI* botAI) { return new WorldBuffStrategy(botAI); }
     static Strategy* bobber_strategy(PlayerbotAI* botAI) { return new UseBobberStrategy(botAI); }
     static Strategy* master_fishing(PlayerbotAI* botAI) { return new MasterFishingStrategy(botAI); }
+    static Strategy* wait_for_attack(PlayerbotAI* botAI) { return new WaitForAttackStrategy(botAI); }
+    static Strategy* focus_heal_targets(PlayerbotAI* botAI) { return new FocusHealTargetsStrategy(botAI); }
 };
 
 class MovementStrategyContext : public NamedObjectContext<Strategy>
@@ -205,7 +218,6 @@ public:
         creators["follow"] = &MovementStrategyContext::follow_master;
         creators["stay"] = &MovementStrategyContext::stay;
         creators["runaway"] = &MovementStrategyContext::runaway;
-        creators["flee from adds"] = &MovementStrategyContext::flee_from_adds;
         creators["guard"] = &MovementStrategyContext::guard;
     }
 
@@ -214,7 +226,6 @@ private:
     static Strategy* follow_master(PlayerbotAI* botAI) { return new FollowMasterStrategy(botAI); }
     static Strategy* stay(PlayerbotAI* botAI) { return new StayStrategy(botAI); }
     static Strategy* runaway(PlayerbotAI* botAI) { return new RunawayStrategy(botAI); }
-    static Strategy* flee_from_adds(PlayerbotAI* botAI) { return new FleeFromAddsStrategy(botAI); }
 };
 
 class AssistStrategyContext : public NamedObjectContext<Strategy>

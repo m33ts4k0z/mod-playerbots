@@ -1,10 +1,10 @@
 /*
- * Copyright (C) 2016+ AzerothCore <www.azerothcore.org>, released under GNU AGPL v3 license, you may redistribute it
- * and/or modify it under version 3 of the License, or (at your option), any later version.
+ * This file is part of the mod-playerbots module for AzerothCore. See AUTHORS file for Copyright
+ * information; released under GNU GPL v2 license, redistribute/modify under version 2 of the License,
+ * or (at your option) any later version.
  */
 
 #include "GroupValues.h"
-
 #include "Playerbots.h"
 #include "ServerFacade.h"
 
@@ -47,7 +47,7 @@ bool IsNearLeaderValue::Calculate()
     if (groupLeader == bot)
         return true;
 
-    return ServerFacade::instance().GetDistance2d(bot, botAI->GetGroupLeader()) < sPlayerbotAIConfig.sightDistance;
+    return ServerFacade::instance().GetDistance2d(bot, botAI->GetGroupLeader()) < sPlayerbotAIConfig.SightDistance;
 }
 
 bool BoolANDValue::Calculate()
@@ -155,10 +155,10 @@ bool GroupReadyValue::Calculate()
         // We only wait for members that are in range otherwise we might be waiting for bots stuck in dead loops
         // forever.
         if (botAI->GetGroupLeader() &&
-            ServerFacade::instance().GetDistance2d(member, botAI->GetGroupLeader()) > sPlayerbotAIConfig.sightDistance)
+            ServerFacade::instance().GetDistance2d(member, botAI->GetGroupLeader()) > sPlayerbotAIConfig.SightDistance)
             continue;
 
-        if (member->GetHealthPct() < sPlayerbotAIConfig.almostFullHealth)
+        if (member->GetHealthPct() < sPlayerbotAIConfig.AlmostFullHealth)
             return false;
 
         if (!member->GetPower(POWER_MANA))
@@ -166,7 +166,7 @@ bool GroupReadyValue::Calculate()
 
         float mana = (static_cast<float>(member->GetPower(POWER_MANA)) / member->GetMaxPower(POWER_MANA)) * 100;
 
-        if (mana < sPlayerbotAIConfig.mediumMana)
+        if (mana < sPlayerbotAIConfig.MediumMana)
             return false;
     }
 

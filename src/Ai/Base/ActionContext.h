@@ -1,19 +1,20 @@
 /*
- * Copyright (C) 2016+ AzerothCore <www.azerothcore.org>, released under GNU AGPL v3 license, you may redistribute it
- * and/or modify it under version 3 of the License, or (at your option), any later version.
+ * This file is part of the mod-playerbots module for AzerothCore. See AUTHORS file for Copyright
+ * information; released under GNU GPL v2 license, redistribute/modify under version 2 of the License,
+ * or (at your option) any later version.
  */
 
-#ifndef _PLAYERBOT_ACTIONCONTEXT_H
-#define _PLAYERBOT_ACTIONCONTEXT_H
+#ifndef PLAYERBOTS_ACTIONCONTEXT_H
+#define PLAYERBOTS_ACTIONCONTEXT_H
 
 #include "AddLootAction.h"
 #include "AttackAction.h"
-#include "ShareQuestAction.h"
-#include "BattleGroundTactics.h"
 #include "AutoMaintenanceOnLevelupAction.h"
 #include "BattleGroundJoinAction.h"
 #include "BattleGroundTactics.h"
+#include "BotStateActions.h"
 #include "BuyAction.h"
+#include "CancelChannelAction.h"
 #include "CastCustomSpellAction.h"
 #include "ChangeStrategyAction.h"
 #include "ChangeTalentsAction.h"
@@ -22,12 +23,12 @@
 #include "ChooseRpgTargetAction.h"
 #include "ChooseTargetActions.h"
 #include "ChooseTravelTargetAction.h"
-#include "CombatActions.h"
 #include "DelayAction.h"
 #include "DestroyItemAction.h"
+#include "DropQuestAction.h"
 #include "EmoteAction.h"
+#include "FishingAction.h"
 #include "FollowActions.h"
-#include "GenericActions.h"
 #include "GenericSpellActions.h"
 #include "GiveItemAction.h"
 #include "GreetAction.h"
@@ -42,10 +43,14 @@
 #include "MoveToRpgTargetAction.h"
 #include "MoveToTravelTargetAction.h"
 #include "MovementActions.h"
+#include "NewRpgAction.h"
+#include "NewRpgDoGather.h"
+#include "NewRpgOutdoorPvP.h"
 #include "NonCombatActions.h"
 #include "OutfitAction.h"
+#include "PetsAction.h"
 #include "PositionAction.h"
-#include "DropQuestAction.h"
+#include "PullActions.h"
 #include "RandomBotUpdateAction.h"
 #include "ReachTargetActions.h"
 #include "ReleaseSpiritAction.h"
@@ -56,15 +61,15 @@
 #include "RpgSubActions.h"
 #include "RtiAction.h"
 #include "SayAction.h"
+#include "ShareQuestAction.h"
 #include "StayActions.h"
 #include "SuggestWhatToDoAction.h"
 #include "TravelAction.h"
+#include "UseItemAction.h"
 #include "VehicleActions.h"
+#include "WaitForAttackAction.h"
 #include "WorldBuffAction.h"
 #include "XpGainAction.h"
-#include "NewRpgAction.h"
-#include "FishingAction.h"
-#include "CancelChannelAction.h"
 
 class PlayerbotAI;
 
@@ -86,8 +91,6 @@ public:
         creators["move random"] = &ActionContext::move_random;
         creators["attack"] = &ActionContext::melee;
         creators["melee"] = &ActionContext::melee;
-        creators["switch to melee"] = &ActionContext::switch_to_melee;
-        creators["switch to ranged"] = &ActionContext::switch_to_ranged;
         creators["reach spell"] = &ActionContext::ReachSpell;
         creators["reach melee"] = &ActionContext::ReachMelee;
         creators["reach party member to heal"] = &ActionContext::reach_party_member_to_heal;
@@ -95,6 +98,7 @@ public:
         creators["flee"] = &ActionContext::flee;
         creators["flee with pet"] = &ActionContext::flee_with_pet;
         creators["avoid aoe"] = &ActionContext::avoid_aoe;
+        creators["wake on combat start"] = &ActionContext::wake_on_combat_start;
         creators["combat formation move"] = &ActionContext::combat_formation_move;
         creators["tank face"] = &ActionContext::tank_face;
         creators["rear flank"] = &ActionContext::rear_flank;
@@ -103,6 +107,13 @@ public:
         creators["shoot"] = &ActionContext::shoot;
         creators["lifeblood"] = &ActionContext::lifeblood;
         creators["arcane torrent"] = &ActionContext::arcane_torrent;
+        creators["pull my target"] = &ActionContext::pull_my_target;
+        creators["pull rti target"] = &ActionContext::pull_rti_target;
+        creators["pull start"] = &ActionContext::pull_start;
+        creators["pull action"] = &ActionContext::pull_action;
+        creators["pull end"] = &ActionContext::pull_end;
+        creators["return to pull position"] = &ActionContext::return_to_pull_position;
+        creators["reach pull"] = &ActionContext::reach_pull;
         creators["end pull"] = &ActionContext::end_pull;
         creators["healthstone"] = &ActionContext::healthstone;
         creators["healing potion"] = &ActionContext::healing_potion;
@@ -121,7 +132,6 @@ public:
         creators["shoot"] = &ActionContext::shoot;
         creators["follow"] = &ActionContext::follow;
         creators["move from group"] = &ActionContext::move_from_group;
-        creators["flee to group leader"] = &ActionContext::flee_to_group_leader;
         creators["runaway"] = &ActionContext::runaway;
         creators["stay"] = &ActionContext::stay;
         creators["sit"] = &ActionContext::sit;
@@ -163,6 +173,10 @@ public:
         creators["war stomp"] = &ActionContext::war_stomp;
         creators["blood fury"] = &ActionContext::blood_fury;
         creators["berserking"] = &ActionContext::berserking;
+        creators["every man for himself"] = &ActionContext::every_man_for_himself;
+        creators["will of the forsaken"] = &ActionContext::will_of_the_forsaken;
+        creators["stoneform"] = &ActionContext::stoneform;
+        creators["escape artist"] = &ActionContext::escape_artist;
         creators["use trinket"] = &ActionContext::use_trinket;
         creators["auto talents"] = &ActionContext::auto_talents;
         creators["auto share quest"] = &ActionContext::auto_share_quest;
@@ -262,6 +276,9 @@ public:
         creators["new rpg wander npc"] = &ActionContext::new_rpg_wander_npc;
         creators["new rpg do quest"] = &ActionContext::new_rpg_do_quest;
         creators["new rpg travel flight"] = &ActionContext::new_rpg_travel_flight;
+        creators["new rpg outdoor pvp"] = &ActionContext::new_rpg_outdoor_pvp;
+        creators["new rpg do gather"] = &ActionContext::new_rpg_do_gather;
+        creators["wait for attack keep safe distance"] = &ActionContext::wait_for_attack_keep_safe_distance;
     }
 
 private:
@@ -291,8 +308,6 @@ private:
     static Action* _return(PlayerbotAI* botAI) { return new ReturnAction(botAI); }
     static Action* shoot(PlayerbotAI* botAI) { return new CastShootAction(botAI); }
     static Action* melee(PlayerbotAI* botAI) { return new MeleeAction(botAI); }
-    static Action* switch_to_melee(PlayerbotAI* botAI) { return new SwitchToMeleeAction(botAI); }
-    static Action* switch_to_ranged(PlayerbotAI* botAI) { return new SwitchToRangedAction(botAI); }
     static Action* ReachSpell(PlayerbotAI* botAI) { return new ReachSpellAction(botAI); }
     static Action* ReachMelee(PlayerbotAI* botAI) { return new ReachMeleeAction(botAI); }
     static Action* reach_party_member_to_heal(PlayerbotAI* botAI) { return new ReachPartyMemberToHealAction(botAI); }
@@ -300,6 +315,7 @@ private:
     static Action* flee(PlayerbotAI* botAI) { return new FleeAction(botAI); }
     static Action* flee_with_pet(PlayerbotAI* botAI) { return new FleeWithPetAction(botAI); }
     static Action* avoid_aoe(PlayerbotAI* botAI) { return new AvoidAoeAction(botAI); }
+    static Action* wake_on_combat_start(PlayerbotAI* botAI) { return new WakeOnCombatStartAction(botAI); }
     static Action* combat_formation_move(PlayerbotAI* botAI) { return new CombatFormationMoveAction(botAI); }
     static Action* tank_face(PlayerbotAI* botAI) { return new TankFaceAction(botAI); }
     static Action* rear_flank(PlayerbotAI* botAI) { return new RearFlankAction(botAI); }
@@ -307,7 +323,13 @@ private:
     static Action* gift_of_the_naaru(PlayerbotAI* botAI) { return new CastGiftOfTheNaaruAction(botAI); }
     static Action* lifeblood(PlayerbotAI* botAI) { return new CastLifeBloodAction(botAI); }
     static Action* arcane_torrent(PlayerbotAI* botAI) { return new CastArcaneTorrentAction(botAI); }
-    static Action* mana_tap(PlayerbotAI* botAI) { return new CastManaTapAction(botAI); }
+    static Action* pull_my_target(PlayerbotAI* botAI) { return new PullMyTargetAction(botAI); }
+    static Action* pull_rti_target(PlayerbotAI* botAI) { return new PullRtiTargetAction(botAI); }
+    static Action* pull_start(PlayerbotAI* botAI) { return new PullStartAction(botAI); }
+    static Action* pull_action(PlayerbotAI* botAI) { return new PullAction(botAI); }
+    static Action* pull_end(PlayerbotAI* botAI) { return new PullEndAction(botAI); }
+    static Action* return_to_pull_position(PlayerbotAI* botAI) { return new ReturnToPullPositionAction(botAI); }
+    static Action* reach_pull(PlayerbotAI* botAI) { return new ReachPullAction(botAI); }
     static Action* end_pull(PlayerbotAI* botAI) { return new ChangeCombatStrategyAction(botAI, "-pull"); }
     static Action* cancel_channel(PlayerbotAI* botAI) { return new CancelChannelAction(botAI); }
 
@@ -325,7 +347,6 @@ private:
     static Action* runaway(PlayerbotAI* botAI) { return new RunAwayAction(botAI); }
     static Action* follow(PlayerbotAI* botAI) { return new FollowAction(botAI); }
     static Action* move_from_group(PlayerbotAI* botAI) { return new MoveFromGroupAction(botAI); }
-    static Action* flee_to_group_leader(PlayerbotAI* botAI) { return new FleeToGroupLeaderAction(botAI); }
     static Action* add_gathering_loot(PlayerbotAI* botAI) { return new AddGatheringLootAction(botAI); }
     static Action* add_loot(PlayerbotAI* botAI) { return new AddLootAction(botAI); }
     static Action* add_all_loot(PlayerbotAI* botAI) { return new AddAllLootAction(botAI); }
@@ -357,9 +378,13 @@ private:
     static Action* war_stomp(PlayerbotAI* botAI) { return new CastWarStompAction(botAI); }
     static Action* blood_fury(PlayerbotAI* botAI) { return new CastBloodFuryAction(botAI); }
     static Action* berserking(PlayerbotAI* botAI) { return new CastBerserkingAction(botAI); }
+    static Action* every_man_for_himself(PlayerbotAI* botAI) { return new CastEveryManForHimselfAction(botAI); }
+    static Action* will_of_the_forsaken(PlayerbotAI* botAI) { return new CastWillOfTheForsakenAction(botAI); }
+    static Action* stoneform(PlayerbotAI* botAI) { return new CastStoneformAction(botAI); }
+    static Action* escape_artist(PlayerbotAI* botAI) { return new CastEscapeArtistAction(botAI); }
     static Action* use_trinket(PlayerbotAI* botAI) { return new UseTrinketAction(botAI); }
     static Action* auto_talents(PlayerbotAI* botAI) { return new AutoSetTalentsAction(botAI); }
-    static Action* auto_share_quest(PlayerbotAI* ai) { return new AutoShareQuestAction(ai); }
+    static Action* auto_share_quest(PlayerbotAI* botAI) { return new AutoShareQuestAction(botAI); }
     static Action* auto_maintenance_on_levelup(PlayerbotAI* botAI) { return new AutoMaintenanceOnLevelupAction(botAI); }
     static Action* xp_gain(PlayerbotAI* botAI) { return new XpGainAction(botAI); }
     static Action* invite_nearby(PlayerbotAI* botAI) { return new InviteNearbyToGroupAction(botAI); }
@@ -445,17 +470,20 @@ private:
     static Action* rpg_duel(PlayerbotAI* botAI) { return new RpgDuelAction(botAI); }
     static Action* rpg_mount_anim(PlayerbotAI* botAI) { return new RpgMountAnimAction(botAI); }
 
-    static Action* toggle_pet_spell(PlayerbotAI* ai) { return new TogglePetSpellAutoCastAction(ai); }
-    static Action* pet_attack(PlayerbotAI* ai) { return new PetAttackAction(ai); }
-    static Action* set_pet_stance(PlayerbotAI* ai) { return new SetPetStanceAction(ai); }
+    static Action* toggle_pet_spell(PlayerbotAI* botAI) { return new TogglePetSpellAutoCastAction(botAI); }
+    static Action* pet_attack(PlayerbotAI* botAI) { return new PetAttackAction(botAI); }
+    static Action* set_pet_stance(PlayerbotAI* botAI) { return new SetPetStanceAction(botAI); }
 
-    static Action* new_rpg_status_update(PlayerbotAI* ai) { return new NewRpgStatusUpdateAction(ai); }
-    static Action* new_rpg_go_grind(PlayerbotAI* ai) { return new NewRpgGoGrindAction(ai); }
-    static Action* new_rpg_go_camp(PlayerbotAI* ai) { return new NewRpgGoCampAction(ai); }
-    static Action* new_rpg_wander_random(PlayerbotAI* ai) { return new NewRpgWanderRandomAction(ai); }
-    static Action* new_rpg_wander_npc(PlayerbotAI* ai) { return new NewRpgWanderNpcAction(ai); }
-    static Action* new_rpg_do_quest(PlayerbotAI* ai) { return new NewRpgDoQuestAction(ai); }
-    static Action* new_rpg_travel_flight(PlayerbotAI* ai) { return new NewRpgTravelFlightAction(ai); }
+    static Action* new_rpg_status_update(PlayerbotAI* botAI) { return new NewRpgStatusUpdateAction(botAI); }
+    static Action* new_rpg_go_grind(PlayerbotAI* botAI) { return new NewRpgGoGrindAction(botAI); }
+    static Action* new_rpg_go_camp(PlayerbotAI* botAI) { return new NewRpgGoCampAction(botAI); }
+    static Action* new_rpg_wander_random(PlayerbotAI* botAI) { return new NewRpgWanderRandomAction(botAI); }
+    static Action* new_rpg_wander_npc(PlayerbotAI* botAI) { return new NewRpgWanderNpcAction(botAI); }
+    static Action* new_rpg_do_quest(PlayerbotAI* botAI) { return new NewRpgDoQuestAction(botAI); }
+    static Action* new_rpg_travel_flight(PlayerbotAI* botAI) { return new NewRpgTravelFlightAction(botAI); }
+    static Action* new_rpg_outdoor_pvp(PlayerbotAI* botAI) { return new NewRpgOutdoorPvpAction(botAI); }
+    static Action* new_rpg_do_gather(PlayerbotAI* botAI) { return new NewRpgDoGatherAction(botAI); }
+    static Action* wait_for_attack_keep_safe_distance(PlayerbotAI* botAI) { return new WaitForAttackKeepSafeDistanceAction(botAI); }
 };
 
 #endif

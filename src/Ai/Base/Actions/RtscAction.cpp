@@ -1,10 +1,10 @@
 /*
- * Copyright (C) 2016+ AzerothCore <www.azerothcore.org>, released under GNU AGPL v3 license, you may redistribute it
- * and/or modify it under version 3 of the License, or (at your option), any later version.
+ * This file is part of the mod-playerbots module for AzerothCore. See AUTHORS file for Copyright
+ * information; released under GNU GPL v2 license, redistribute/modify under version 2 of the License,
+ * or (at your option) any later version.
  */
 
 #include "RtscAction.h"
-
 #include "Playerbots.h"
 #include "RTSCValues.h"
 
@@ -46,7 +46,7 @@ bool RTSCAction::Execute(Event event)
     if (command == "select" && !selected)
     {
         SET_AI_VALUE(bool, "RTSC selected", true);
-        master->SendPlaySpellVisual(bot->GetGUID(), 5036);
+        bot->SendPlaySpellVisual(5036);
         return true;
     }
     else if (command == "cancel")
@@ -54,7 +54,7 @@ bool RTSCAction::Execute(Event event)
         RESET_AI_VALUE(bool, "RTSC selected");
         RESET_AI_VALUE(std::string, "RTSC next spell action");
         if (selected)
-            master->SendPlaySpellVisual(bot->GetGUID(), 6372);
+            bot->SendPlaySpellVisual(6372);
         return true;
     }
     else if (command == "toggle")
@@ -62,12 +62,12 @@ bool RTSCAction::Execute(Event event)
         if (!selected)
         {
             SET_AI_VALUE(bool, "RTSC selected", true);
-            master->SendPlaySpellVisual(bot->GetGUID(), 5036);
+            bot->SendPlaySpellVisual(5036);
         }
         else
         {
             SET_AI_VALUE(bool, "RTSC selected", false);
-            master->SendPlaySpellVisual(bot->GetGUID(), 6372);
+            bot->SendPlaySpellVisual(6372);
         }
 
         return true;

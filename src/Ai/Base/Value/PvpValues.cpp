@@ -1,15 +1,27 @@
 /*
- * Copyright (C) 2016+ AzerothCore <www.azerothcore.org>, released under GNU AGPL v3 license, you may redistribute it
- * and/or modify it under version 3 of the License, or (at your option), any later version.
+ * This file is part of the mod-playerbots module for AzerothCore. See AUTHORS file for Copyright
+ * information; released under GNU GPL v2 license, redistribute/modify under version 2 of the License,
+ * or (at your option) any later version.
  */
 
 #include "PvpValues.h"
-
 #include "BattlegroundEY.h"
 #include "BattlegroundMgr.h"
 #include "BattlegroundWS.h"
 #include "Playerbots.h"
 #include "ServerFacade.h"
+
+namespace
+{
+// a game from the random queue records BATTLEGROUND_RB as the player's type: use the rolled map
+BattlegroundTypeId RealBgType(Player* bot)
+{
+    BattlegroundTypeId bgType = bot->GetBattlegroundTypeId();
+    if (bgType == BATTLEGROUND_RB && bot->GetBattleground())
+        bgType = bot->GetBattleground()->GetBgTypeID(true);
+    return bgType;
+}
+}  // namespace
 
 Unit* FlagCarrierValue::Calculate()
 {
@@ -17,24 +29,24 @@ Unit* FlagCarrierValue::Calculate()
 
     if (botAI->GetBot()->InBattleground())
     {
-        if (botAI->GetBot()->GetBattlegroundTypeId() == BattlegroundTypeId::BATTLEGROUND_WS)
+        if (RealBgType(botAI->GetBot()) == BattlegroundTypeId::BATTLEGROUND_WS)
         {
             BattlegroundWS* bg = (BattlegroundWS*)botAI->GetBot()->GetBattleground();
 
             if (!bg)
                 return nullptr;
 
-            if ((!sameTeam && bot->GetTeamId() == TEAM_HORDE || (sameTeam && bot->GetTeamId() == TEAM_ALLIANCE)) &&
+            if (((!sameTeam && bot->GetTeamId() == TEAM_HORDE) || (sameTeam && bot->GetTeamId() == TEAM_ALLIANCE)) &&
                 !bg->GetFlagPickerGUID(TEAM_HORDE).IsEmpty())
                 carrier = ObjectAccessor::GetPlayer(bg->GetBgMap(), bg->GetFlagPickerGUID(TEAM_HORDE));
 
-            if ((!sameTeam && bot->GetTeamId() == TEAM_ALLIANCE || (sameTeam && bot->GetTeamId() == TEAM_HORDE)) &&
+            if (((!sameTeam && bot->GetTeamId() == TEAM_ALLIANCE) || (sameTeam && bot->GetTeamId() == TEAM_HORDE)) &&
                 !bg->GetFlagPickerGUID(TEAM_ALLIANCE).IsEmpty())
                 carrier = ObjectAccessor::GetPlayer(bg->GetBgMap(), bg->GetFlagPickerGUID(TEAM_ALLIANCE));
 
             if (carrier)
             {
-                if (ignoreRange || bot->IsWithinDistInMap(carrier, sPlayerbotAIConfig.sightDistance))
+                if (ignoreRange || bot->IsWithinDistInMap(carrier, sPlayerbotAIConfig.SightDistance))
                 {
                     return carrier;
                 }
@@ -43,7 +55,7 @@ Unit* FlagCarrierValue::Calculate()
             }
         }
 
-        if (botAI->GetBot()->GetBattlegroundTypeId() == BATTLEGROUND_EY)
+        if (RealBgType(botAI->GetBot()) == BATTLEGROUND_EY)
         {
             BattlegroundEY* bg = (BattlegroundEY*)botAI->GetBot()->GetBattleground();
 
@@ -65,7 +77,7 @@ Unit* FlagCarrierValue::Calculate()
 
             if (carrier)
             {
-                if (ignoreRange || bot->IsWithinDistInMap(carrier, sPlayerbotAIConfig.sightDistance))
+                if (ignoreRange || bot->IsWithinDistInMap(carrier, sPlayerbotAIConfig.SightDistance))
                 {
                     return carrier;
                 }
@@ -136,7 +148,7 @@ CreatureData const* BgMasterValue::NearestBm(bool allowDead)
         if (rbmPair && rDist <= dist)
             continue;
 
-        CreatureTemplate const* bmTemplate = sObjectMgr->GetCreatureTemplate(bmPair->id1);
+        CreatureTemplate const* bmTemplate = sObjectMgr->GetCreatureTemplate(bmPair->id);
         if (!bmTemplate)
             continue;
 

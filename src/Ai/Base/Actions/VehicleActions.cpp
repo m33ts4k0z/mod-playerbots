@@ -1,14 +1,15 @@
 /*
- * Copyright (C) 2016+ AzerothCore <www.azerothcore.org>, released under GNU AGPL v3 license, you may redistribute it
- * and/or modify it under version 3 of the License, or (at your option), any later version.
+ * This file is part of the mod-playerbots module for AzerothCore. See AUTHORS file for Copyright
+ * information; released under GNU GPL v2 license, redistribute/modify under version 2 of the License,
+ * or (at your option) any later version.
  */
 
 #include "VehicleActions.h"
-
 #include "BattlegroundIC.h"
 #include "ItemVisitors.h"
 #include "ObjectDefines.h"
 #include "Playerbots.h"
+#include "PositionValue.h"
 #include "QuestValues.h"
 #include "ServerFacade.h"
 #include "Unit.h"
@@ -88,6 +89,12 @@ bool EnterVehicleAction::EnterVehicle(Unit* vehicleBase, bool moveIfFar)
 
     if (!bot->IsOnVehicle(vehicleBase))
         return false;
+
+    // a siege position is only for the vehicle it was set for: the tactics set one for this vehicle
+    PositionMap& posMap = context->GetValue<PositionMap&>("position")->Get();
+    PositionInfo siegePos = posMap["bg siege"];
+    siegePos.Reset();
+    posMap["bg siege"] = siegePos;
 
     // dismount because bots can enter vehicle on mount
     WorldPacket emptyPacket;

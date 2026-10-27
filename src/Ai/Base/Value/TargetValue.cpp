@@ -1,30 +1,76 @@
 /*
- * Copyright (C) 2016+ AzerothCore <www.azerothcore.org>, released under GNU AGPL v3 license, you may redistribute it
- * and/or modify it under version 3 of the License, or (at your option), any later version.
+ * This file is part of the mod-playerbots module for AzerothCore. See AUTHORS file for Copyright
+ * information; released under GNU GPL v2 license, redistribute/modify under version 2 of the License,
+ * or (at your option) any later version.
  */
 
 #include "TargetValue.h"
-
+#include "CombatManager.h"
 #include "LastMovementValue.h"
 #include "ObjectGuid.h"
 #include "Playerbots.h"
 #include "RtiTargetValue.h"
 #include "ScriptedCreature.h"
-#include "ThreatMgr.h"
+#include "Strategy.h"
+#include "ThreatManager.h"
+
+GuidSet GatherStrategyTargetExclusions(PlayerbotAI* botAI, TargetValueExclusionType type)
+{
+    GuidSet exclusions;
+    if (!botAI || !botAI->HasTargetExclusions())
+        return exclusions;
+
+    for (auto const& strategyName : botAI->GetStrategies(BOT_STATE_COMBAT))
+    {
+        Strategy* strategy = botAI->GetStrategy(strategyName, BOT_STATE_COMBAT);
+        if (!strategy)
+            continue;
+
+        strategy->AppendTargetExclusions(exclusions, type);
+    }
+
+    return exclusions;
+}
+
+bool HasEnoughAoeTargets(PlayerbotAI* botAI, Position const& center, float range, uint32 minCount)
+{
+    GuidVector attackers = botAI->GetAiObjectContext()->GetValue<GuidVector>("attackers")->Get();
+    auto const isInRange = [&center, range](Unit* unit)
+    { return unit && unit->IsAlive() && unit->GetDistance(center) <= range; };
+
+    uint32 count = 0;
+    for (ObjectGuid const guid : attackers)
+    {
+        if (isInRange(botAI->GetUnit(guid)))
+            ++count;
+    }
+
+    if (count < minCount || !botAI->HasTargetExclusions())
+        return count >= minCount;
+
+    GuidSet const exclusions = GatherStrategyTargetExclusions(botAI, TargetValueExclusionType::Aoe);
+    for (ObjectGuid const guid : attackers)
+    {
+        if (exclusions.find(guid) != exclusions.end() && isInRange(botAI->GetUnit(guid)))
+            --count;
+    }
+
+    return count >= minCount;
+}
 
 Unit* FindTargetStrategy::GetResult() { return result; }
 
-Unit* TargetValue::FindTarget(FindTargetStrategy* strategy)
+Unit* TargetValue::FindTarget(FindTargetStrategy* strategy, GuidSet const& exclusions)
 {
     GuidVector attackers = botAI->GetAiObjectContext()->GetValue<GuidVector>("attackers")->Get();
     for (ObjectGuid const guid : attackers)
     {
         Unit* unit = botAI->GetUnit(guid);
-        if (!unit)
+        if (!unit || exclusions.find(guid) != exclusions.end())
             continue;
 
-        ThreatMgr& ThreatMgr = unit->GetThreatMgr();
-        strategy->CheckAttacker(unit, &ThreatMgr);
+        ThreatManager& threatMgr = unit->GetThreatMgr();
+        strategy->CheckAttacker(unit, &threatMgr);
     }
 
     return strategy->GetResult();
@@ -88,7 +134,7 @@ void FindTargetStrategy::GetPlayerCount(Unit* creature, uint32* tankCount, uint3
         if (!player)
             continue;
 
-        if (botAI->IsTank(player))
+        if (PlayerbotAI::IsTank(player))
             ++(*tankCount);
         else
             ++(*dpsCount);
@@ -144,24 +190,23 @@ Unit* FindTargetValue::Calculate()
     {
         return nullptr;
     }
-    HostileReference* ref = bot->getHostileRefMgr().getFirst();
-    while (ref)
+    for (auto const& [guid, ref] : bot->GetThreatMgr().GetThreatenedByMeList())
     {
-        ThreatMgr* threatManager = ref->GetSource();
-        Unit* unit = threatManager->GetOwner();
+        Unit* unit = ref->GetOwner();
+        if (!unit)
+            continue;
+
         std::wstring wnamepart;
         Utf8toWStr(unit->GetName(), wnamepart);
         wstrToLower(wnamepart);
         if (!qualifier.empty() && qualifier.length() == wnamepart.length() && Utf8FitTo(qualifier, wnamepart))
-        {
             return unit;
-        }
-        ref = ref->next();
     }
+
     return nullptr;
 }
 
-void FindBossTargetStrategy::CheckAttacker(Unit* attacker, ThreatMgr* threatManager)
+void FindBossTargetStrategy::CheckAttacker(Unit* attacker, ThreatManager* /*threatManager*/)
 {
     UnitAI* unitAI = attacker->GetAI();
     BossAI* bossAI = dynamic_cast<BossAI*>(unitAI);

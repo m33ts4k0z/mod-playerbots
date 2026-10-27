@@ -1,10 +1,11 @@
 /*
- * Copyright (C) 2016+ AzerothCore <www.azerothcore.org>, released under GNU AGPL v3 license, you may redistribute it
- * and/or modify it under version 3 of the License, or (at your option), any later version.
+ * This file is part of the mod-playerbots module for AzerothCore. See AUTHORS file for Copyright
+ * information; released under GNU GPL v2 license, redistribute/modify under version 2 of the License,
+ * or (at your option) any later version.
  */
 
-#ifndef _PLAYERBOT_LOOTVALUES_H
-#define _PLAYERBOT_LOOTVALUES_H
+#ifndef PLAYERBOTS_LOOTVALUES_H
+#define PLAYERBOTS_LOOTVALUES_H
 
 #include "ItemUsageValue.h"
 #include "LootMgr.h"
@@ -24,7 +25,8 @@ public:
 };
 
 //                   itemId, entry
-typedef std::unordered_map<uint32, int32> DropMap;
+// Multi: one item has many droppers.
+typedef std::unordered_multimap<uint32, int32> DropMap;
 
 // Returns the loot map of all entries
 class DropMapValue : public SingleCalculatedValue<DropMap*>
@@ -60,7 +62,7 @@ typedef std::unordered_map<ItemUsage, std::vector<uint32>> itemUsageMap;
 class EntryLootUsageValue : public CalculatedValue<itemUsageMap>, public Qualified
 {
 public:
-    EntryLootUsageValue(PlayerbotAI* botAI) : CalculatedValue(botAI, "entry loot usage", 2 * 1000) {}
+    EntryLootUsageValue(PlayerbotAI* botAI) : CalculatedValue(botAI, "entry loot usage", 2 * IN_MILLISECONDS) {}
 
     itemUsageMap Calculate() override;
 };
@@ -68,7 +70,7 @@ public:
 class HasUpgradeValue : public BoolCalculatedValue, public Qualified
 {
 public:
-    HasUpgradeValue(PlayerbotAI* botAI) : BoolCalculatedValue(botAI, "has upgrade", 2 * 1000) {}
+    HasUpgradeValue(PlayerbotAI* botAI) : BoolCalculatedValue(botAI, "has upgrade", 2 * IN_MILLISECONDS) {}
 
     bool Calculate() override;
 };

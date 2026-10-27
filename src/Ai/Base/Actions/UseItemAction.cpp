@@ -1,6 +1,7 @@
 /*
- * Copyright (C) 2016+ AzerothCore <www.azerothcore.org>, released under GNU AGPL v3 license, you may redistribute it
- * and/or modify it under version 3 of the License, or (at your option), any later version.
+ * This file is part of the mod-playerbots module for AzerothCore. See AUTHORS file for Copyright
+ * information; released under GNU GPL v2 license, redistribute/modify under version 2 of the License,
+ * or (at your option) any later version.
  */
 
 #include "UseItemAction.h"
@@ -9,7 +10,14 @@
 #include "Event.h"
 #include "ItemPackets.h"
 #include "ItemUsageValue.h"
+#include "LootObjectStack.h"
+#include "PlayerbotAIConfig.h"
+#include "PlayerbotTextMgr.h"
 #include "Playerbots.h"
+#include "ServerFacade.h"
+
+static constexpr uint32 SPELL_LEARNING_1 = 483;
+static constexpr uint32 SPELL_LEARNING_2 = 55884;
 
 bool UseItemAction::Execute(Event event)
 {
@@ -35,21 +43,105 @@ bool UseItemAction::Execute(Event event)
             return UseItemOnGameObject(*items.begin(), *gos.begin());
     }
 
-    botAI->TellError("No items (or game objects) available");
+    botAI->TellError(PlayerbotTextMgr::instance().GetBotTextOrDefault("use_item_none_available",
+                                                                      "No items (or game objects) available", {}));
     return false;
 }
 
 bool UseItemAction::UseGameObject(ObjectGuid guid)
 {
-    GameObject* go = botAI->GetGameObject(guid);
-    if (!go || !go->isSpawned() /* || go->GetGoState() != GO_STATE_READY*/)
+    auto fail = [this](char const* name, char const* defaultText)
+    {
+        botAI->TellError(PlayerbotTextMgr::instance().GetBotTextOrDefault(name, defaultText, {}));
         return false;
+    };
 
-    go->Use(bot);
+    GameObject* go = botAI->GetGameObject(guid);
+    if (!go || !go->isSpawned())
+        return fail("gameobject_unavailable_error", "Game object is no longer available");
 
-    std::ostringstream out;
-    out << "Using " << chat->FormatGameobject(go);
-    botAI->TellMasterNoFacing(out.str());
+    if (sPlayerbotAIConfig.DisallowedGameObjects.contains(go->GetEntry()))
+        return fail("gameobject_disallowed_error", "Game object is disallowed by configuration");
+
+    if (sPlayerbotAIConfig.LootDistance && bot->GetDistance(go) > sPlayerbotAIConfig.LootDistance)
+        return fail("gameobject_outside_loot_distance_error", "Game object is outside the configured loot distance");
+
+    if (go->HasFlag(GAMEOBJECT_FLAGS, GO_FLAG_NOT_SELECTABLE) ||
+        (go->HasFlag(GAMEOBJECT_FLAGS, GO_FLAG_INTERACT_COND) && !go->ActivateToQuest(bot)))
+        return fail("gameobject_not_eligible_error", "Game object is not currently eligible for interaction");
+
+    if (!bot->IsAlive() || bot->IsInFlight() || bot->m_mover != bot || bot->IsNonMeleeSpellCast(false) ||
+        bot->GetLootGUID())
+        return fail("gameobject_cannot_interact_error",
+                    "Cannot interact while dead, flying, remotely controlled, casting, or looting");
+
+    if (go->GetGoType() == GAMEOBJECT_TYPE_CHEST || go->GetGOInfo()->GetLootId())
+    {
+        LootObject loot(bot, guid);
+        if (!loot.IsLootPossible(bot))
+            return fail("gameobject_cannot_loot_error",
+                        "Cannot loot this object: check quest, skill, tools, key, and object state");
+
+        bool inRange = bot->GetDistance(go) <= INTERACTION_DISTANCE - 2.0f;
+        if (botAI->HasStrategy("stay", BOT_STATE_NON_COMBAT) && bot->GetDistance(go) > CONTACT_DISTANCE)
+            return fail("gameobject_stay_out_of_range_error", "Game object is out of reach while staying");
+
+        bool canContinue =
+            botAI->HasStrategy("loot", BOT_STATE_NON_COMBAT) || botAI->HasStrategy("gather", BOT_STATE_NON_COMBAT);
+        if (!inRange && !canContinue)
+            return fail("gameobject_approach_unavailable_error",
+                        "Move closer or enable the loot or gather strategy to approach this object");
+
+        LootObject previous = AI_VALUE(LootObject, "loot target");
+        LootObjectStack* availableLoot = AI_VALUE(LootObjectStack*, "available loot");
+        bool added = availableLoot->Add(guid);
+        context->GetValue<LootObject>("loot target")->Set(loot);
+
+        bool retryGuaranteed = inRange && (bot->isMoving() || bot->IsMounted());
+        std::string objectName = chat->FormatGameobject(go);
+        bool requested = botAI->DoSpecificAction(inRange ? "open loot" : "move to loot", Event(), true);
+        if (!requested && !retryGuaranteed)
+        {
+            if (added && availableLoot->CanAttemptLoot(guid))
+                availableLoot->Remove(guid);
+            if (previous.guid != guid || availableLoot->CanAttemptLoot(previous.guid))
+                context->GetValue<LootObject>("loot target")->Set(previous);
+            else
+                context->GetValue<LootObject>("loot target")->Set(LootObject());
+            return fail("gameobject_open_failed_error", "Could not approach or open the game object");
+        }
+
+        botAI->TellMasterNoFacing(PlayerbotTextMgr::instance().GetBotTextOrDefault(
+            inRange && requested ? "gameobject_open_requested" : "gameobject_loot_queued",
+            inRange && requested ? "Opening requested: %gameobject" : "Queued for looting: %gameobject",
+            {{"%gameobject", objectName}}));
+        return true;
+    }
+
+    if (go->GetGOInfo()->GetLockId() && go->HasFlag(GAMEOBJECT_FLAGS, GO_FLAG_LOCKED))
+        return fail("gameobject_nonloot_locked_error", "This non-loot object requires an opening spell or key");
+
+    if (!go->IsWithinDistInMap(bot, go->GetInteractionDistance()))
+        return fail("gameobject_interact_out_of_range_error", "Move closer to interact with this game object");
+
+    if (bot->isMoving())
+        bot->StopMoving();
+    ServerFacade::instance().SetFacingTo(bot, go);
+
+    WorldPacket use(CMSG_GAMEOBJ_USE, 8);
+    use << guid;
+    bot->GetSession()->HandleGameObjectUseOpcode(use);
+
+    go = botAI->GetGameObject(guid);
+    if (go && go->isSpawned() && go->IsWithinDistInMap(bot, INTERACTION_DISTANCE))
+    {
+        WorldPacket report(CMSG_GAMEOBJ_REPORT_USE, 8);
+        report << guid;
+        bot->GetSession()->HandleGameobjectReportUse(report);
+    }
+
+    botAI->TellMasterNoFacing(PlayerbotTextMgr::instance().GetBotTextOrDefault(
+        "gameobject_interaction_requested", "Game object interaction requested", {}));
     return true;
 }
 
@@ -74,16 +166,58 @@ bool UseItemAction::UseItem(Item* item, ObjectGuid goGuid, Item* itemTarget, Uni
     uint32 glyphIndex = 0;
     uint8 castFlags = 0;
     uint32 targetFlag = TARGET_FLAG_NONE;
+    GameObject* goTarget = goGuid ? botAI->GetGameObject(goGuid) : nullptr;
+    if (goGuid && (!goTarget || !goTarget->isSpawned()))
+        return false;
+
     uint32 spellId = 0;
-    for (uint8 i = 0; i < MAX_ITEM_PROTO_SPELLS; ++i)
+    ItemTemplate const* itemProto = item->GetTemplate();
+    bool const isGenericLearnItem =
+        itemProto->Spells[0].SpellId == SPELL_LEARNING_1 || itemProto->Spells[0].SpellId == SPELL_LEARNING_2;
+
+    if (isGenericLearnItem)
     {
-        if (item->GetTemplate()->Spells[i].SpellId > 0)
+        if (bot->HasSpell(itemProto->Spells[1].SpellId))
+            return false;
+    }
+    else if (itemProto->Spells[0].SpellId)
+    {
+        // Older/direct layout: Spells[0] itself teaches the spell(s), via one or
+        // more SPELL_EFFECT_LEARN_SPELL effects (not necessarily in effect slot 0).
+        if (SpellInfo const* learnSpellInfo = sSpellMgr->GetSpellInfo(itemProto->Spells[0].SpellId))
         {
-            spellId = item->GetTemplate()->Spells[i].SpellId;
-            if (!botAI->CanCastSpell(spellId, bot, false, itemTarget, item))
+            bool foundLearnEffect = false;
+            bool allKnown = true;
+            for (auto const& effect : learnSpellInfo->Effects)
             {
-                return false;
+                if (effect.Effect != SPELL_EFFECT_LEARN_SPELL || !effect.TriggerSpell)
+                    continue;
+
+                foundLearnEffect = true;
+                if (!bot->HasSpell(effect.TriggerSpell))
+                {
+                    allKnown = false;
+                    break;
+                }
             }
+
+            if (foundLearnEffect && allKnown)
+                return false;
+        }
+    }
+
+    // Only check index 0 for generic-learn items; slot 1 is the taught spell id
+    uint8 const spellSlotLimit = isGenericLearnItem ? 1 : MAX_ITEM_PROTO_SPELLS;
+
+    for (uint8 i = 0; i < spellSlotLimit; ++i)
+    {
+        if (itemProto->Spells[i].SpellId > 0)
+        {
+            spellId = itemProto->Spells[i].SpellId;
+            bool canCast = goTarget ? botAI->CanCastSpell(spellId, goTarget, false, item)
+                                    : botAI->CanCastSpell(spellId, bot, false, itemTarget, item);
+            if (!canCast)
+                return false;
         }
     }
 
@@ -92,29 +226,25 @@ bool UseItemAction::UseItem(Item* item, ObjectGuid goGuid, Item* itemTarget, Uni
 
     bool targetSelected = false;
 
-    std::ostringstream out;
-    out << "Using " << chat->FormatItem(item->GetTemplate());
+    std::string itemText = chat->FormatItem(item->GetTemplate());
+    std::string targetText;
 
     if (item->GetTemplate()->Stackable > 1)
     {
         uint32 count = item->GetCount();
         if (count > 1)
-            out << " (" << count << " available) ";
+            itemText += " (" + std::to_string(count) + " available)";
         else
-            out << " (the last one!)";
+            itemText += " (the last one!)";
     }
 
-    if (goGuid)
+    if (goTarget)
     {
-        GameObject* go = botAI->GetGameObject(goGuid);
-        if (!go || !go->isSpawned())
-            return false;
-
         targetFlag = TARGET_FLAG_GAMEOBJECT;
 
         packet << targetFlag;
         packet << goGuid.WriteAsPacked();
-        out << " on " << chat->FormatGameobject(go);
+        targetText = chat->FormatGameobject(goTarget);
         targetSelected = true;
     }
 
@@ -124,7 +254,8 @@ bool UseItemAction::UseItem(Item* item, ObjectGuid goGuid, Item* itemTarget, Uni
         {
             bool fit = SocketItem(itemTarget, item) || SocketItem(itemTarget, item, true);
             if (!fit)
-                botAI->TellMaster("Socket does not fit");
+                botAI->TellMaster(
+                    PlayerbotTextMgr::instance().GetBotTextOrDefault("socket_does_not_fit", "Socket does not fit", {}));
 
             return fit;
         }
@@ -133,14 +264,14 @@ bool UseItemAction::UseItem(Item* item, ObjectGuid goGuid, Item* itemTarget, Uni
             targetFlag = TARGET_FLAG_ITEM;
             packet << targetFlag;
             packet << itemTarget->GetGUID().WriteAsPacked();
-            out << " on " << chat->FormatItem(itemTarget->GetTemplate());
+            targetText = chat->FormatItem(itemTarget->GetTemplate());
             targetSelected = true;
         }
     }
 
     Player* master = GetMaster();
     if (!targetSelected && item->GetTemplate()->Class != ITEM_CLASS_CONSUMABLE && master &&
-        botAI->HasActivePlayerMaster() && !selfOnly)
+        IsRealPlayer(botAI->GetMaster()) && !selfOnly)
     {
         if (ObjectGuid masterSelection = master->GetTarget())
         {
@@ -149,7 +280,7 @@ bool UseItemAction::UseItem(Item* item, ObjectGuid goGuid, Item* itemTarget, Uni
             {
                 targetFlag = TARGET_FLAG_UNIT;
                 packet << targetFlag << masterSelection.WriteAsPacked();
-                out << " on " << unit->GetName();
+                targetText = unit->GetName();
                 targetSelected = true;
             }
         }
@@ -159,7 +290,7 @@ bool UseItemAction::UseItem(Item* item, ObjectGuid goGuid, Item* itemTarget, Uni
     {
         targetFlag = TARGET_FLAG_UNIT;
         packet << targetFlag << unitTarget->GetGUID().WriteAsPacked();
-        out << " on " << unitTarget->GetName();
+        targetText = unitTarget->GetName();
         targetSelected = true;
     }
 
@@ -173,9 +304,7 @@ bool UseItemAction::UseItem(Item* item, ObjectGuid goGuid, Item* itemTarget, Uni
             packet << uint32(0);
             bot->GetSession()->HandleQuestgiverAcceptQuestOpcode(packet);
 
-            std::ostringstream out;
-            out << "Got quest " << chat->FormatQuest(qInfo);
-            botAI->TellMasterNoFacing(out.str());
+            botAI->TellMasterNoFacing("Got quest " + chat->FormatQuest(qInfo));
             return true;
         }
     }
@@ -186,7 +315,7 @@ bool UseItemAction::UseItem(Item* item, ObjectGuid goGuid, Item* itemTarget, Uni
     if (bot->isMoving())
     {
         bot->StopMoving();
-        botAI->SetNextCheckDelay(sPlayerbotAIConfig.globalCoolDown);
+        botAI->SetNextCheckDelay(sPlayerbotAIConfig.GlobalCoolDown);
         return false;
     }
 
@@ -217,7 +346,7 @@ bool UseItemAction::UseItem(Item* item, ObjectGuid goGuid, Item* itemTarget, Uni
                 targetFlag = TARGET_FLAG_TRADE_ITEM;
                 packet << targetFlag << (uint8)1 << ObjectGuid((uint64)TRADE_SLOT_NONTRADED).WriteAsPacked();
                 targetSelected = true;
-                out << " on traded item";
+                targetText = "traded item";
             }
             else
             {
@@ -225,10 +354,10 @@ bool UseItemAction::UseItem(Item* item, ObjectGuid goGuid, Item* itemTarget, Uni
                 packet << targetFlag;
                 packet << itemForSpell->GetGUID().WriteAsPacked();
                 targetSelected = true;
-                out << " on " << chat->FormatItem(itemForSpell->GetTemplate());
+                targetText = chat->FormatItem(itemForSpell->GetTemplate());
             }
             uint32 castTime = spellInfo->CalcCastTime();
-            botAI->SetNextCheckDelay(castTime + sPlayerbotAIConfig.reactDelay);
+            botAI->SetNextCheckDelay(castTime + sPlayerbotAIConfig.ReactDelay);
         }
 
         break;
@@ -246,17 +375,17 @@ bool UseItemAction::UseItem(Item* item, ObjectGuid goGuid, Item* itemTarget, Uni
             targetSelected = true;
 
             if (unitTarget == bot || !unitTarget->IsInWorld() || unitTarget->IsDuringRemoveFromWorld())
-                out << " on self";
+                targetText = "self";
             else if (unitTarget->IsHostileTo(bot))
-                out << " on self";
+                targetText = "self";
             else
-                out << " on " << unitTarget->GetName();
+                targetText = unitTarget->GetName();
         }
         else
         {
             packet << bot->GetPackGUID();
             targetSelected = true;
-            out << " on self";
+            targetText = "self";
         }
     }
 
@@ -270,7 +399,7 @@ bool UseItemAction::UseItem(Item* item, ObjectGuid goGuid, Item* itemTarget, Uni
             return false;
 
         // bot->SetStandState(UNIT_STAND_STATE_SIT);
-        botAI->InterruptSpell();
+        bot->CastStop();
         float hp = bot->GetHealthPct();
         float mp = bot->GetPower(POWER_MANA) * 100.0f / bot->GetMaxPower(POWER_MANA);
         float p = 0.f;
@@ -291,10 +420,10 @@ bool UseItemAction::UseItem(Item* item, ObjectGuid goGuid, Item* itemTarget, Uni
         }
 
         if (!bot->IsInCombat() && !bot->InBattleground())
-            botAI->SetNextCheckDelay(std::max(10000.0f, 27000.0f * (100 - p) / 100.0f));
+            SetDuration((uint32)std::max(10.0f * IN_MILLISECONDS, 27.0f * IN_MILLISECONDS * (100 - p) / 100.0f));
 
         if (!bot->IsInCombat() && bot->InBattleground())
-            botAI->SetNextCheckDelay(std::max(10000.0f, 20000.0f * (100 - p) / 100.0f));
+            SetDuration((uint32)std::max(10.0f * IN_MILLISECONDS, 20.0f * IN_MILLISECONDS * (100 - p) / 100.0f));
 
         // botAI->SetNextCheckDelay(27000.0f * (100 - p) / 100.0f);
         //  botAI->SetNextCheckDelay(20000);
@@ -306,14 +435,22 @@ bool UseItemAction::UseItem(Item* item, ObjectGuid goGuid, Item* itemTarget, Uni
     if (!spellId)
         return false;
 
-    // botAI->SetNextCheckDelay(sPlayerbotAIConfig.globalCoolDown);
-    botAI->TellMasterNoFacing(out.str());
+    // botAI->SetNextCheckDelay(sPlayerbotAIConfig.GlobalCoolDown);
+    std::string useText =
+        targetSelected
+            ? PlayerbotTextMgr::instance().GetBotTextOrDefault("use_item_on_target", "Using %item on %target",
+                                                               {{"%item", itemText}, {"%target", targetText}})
+            : PlayerbotTextMgr::instance().GetBotTextOrDefault("use_item", "Using %item", {{"%item", itemText}});
+    botAI->TellMasterNoFacing(useText);
     bot->GetSession()->HandleUseItemOpcode(packet);
     return true;
 }
 
 void UseItemAction::TellConsumableUse(Item* item, std::string const action, float percent)
 {
+    if (!sPlayerbotAIConfig.AnnounceConsumableUse)
+        return;
+
     std::ostringstream out;
     out << action << " " << chat->FormatItem(item->GetTemplate());
 
@@ -329,13 +466,26 @@ bool UseItemAction::SocketItem(Item* item, Item* gem, bool replace)
     WorldPacket packet(CMSG_SOCKET_GEMS);
     packet << item->GetGUID();
 
+    // A buckle's gem goes into the first colourless template socket - see WorldSession::HandleSocketOpcode.
+    uint8 firstPrismatic = 0;
+    while (firstPrismatic < MAX_GEM_SOCKETS && item->GetTemplate()->Socket[firstPrismatic].Color)
+        ++firstPrismatic;
+
+    bool const hasPrismaticSocket = item->GetEnchantmentId(PRISMATIC_ENCHANTMENT_SLOT) != 0;
+
     bool fits = false;
     for (uint32 enchant_slot = SOCK_ENCHANTMENT_SLOT; enchant_slot < SOCK_ENCHANTMENT_SLOT + MAX_GEM_SOCKETS;
          ++enchant_slot)
     {
-        uint8 SocketColor = item->GetTemplate()->Socket[enchant_slot - SOCK_ENCHANTMENT_SLOT].Color;
+        uint32 socketIndex = enchant_slot - SOCK_ENCHANTMENT_SLOT;
+        uint8 socketColor = item->GetTemplate()->Socket[socketIndex].Color;
         GemPropertiesEntry const* gemProperty = sGemPropertiesStore.LookupEntry(gem->GetTemplate()->GemProperties);
-        if (gemProperty && (gemProperty->color & SocketColor))
+
+        // A socket added by a buckle carries no colour of its own and takes any gem except a meta one.
+        bool const isPrismatic = !socketColor && hasPrismaticSocket && socketIndex == firstPrismatic;
+        bool const gemFitsSocket = gemProperty && (isPrismatic ? gemProperty->color != SOCKET_COLOR_META
+                                                               : (gemProperty->color & socketColor) != 0);
+        if (gemFitsSocket)
         {
             if (fits)
             {
@@ -372,10 +522,9 @@ bool UseItemAction::SocketItem(Item* item, Item* gem, bool replace)
 
     if (fits)
     {
-        std::ostringstream out;
-        out << "Socketing " << chat->FormatItem(item->GetTemplate());
-        out << " with " << chat->FormatItem(gem->GetTemplate());
-        botAI->TellMaster(out);
+        botAI->TellMaster(PlayerbotTextMgr::instance().GetBotTextOrDefault(
+            "socketing_item_with_gem", "Socketing %item with %gem",
+            {{"%item", chat->FormatItem(item->GetTemplate())}, {"%gem", chat->FormatItem(gem->GetTemplate())}}));
 
         WorldPackets::Item::SocketGems nicePacket(std::move(packet));
         nicePacket.Read();
@@ -439,7 +588,7 @@ bool UseRandomRecipe::Execute(Event /*event*/)
 
 bool UseRandomRecipe::isUseful()
 {
-    return !bot->IsInCombat() && !botAI->HasActivePlayerMaster() && !bot->InBattleground();
+    return !bot->IsInCombat() && !IsRealPlayer(botAI->GetMaster()) && !bot->InBattleground();
 }
 
 bool UseRandomRecipe::isPossible() { return AI_VALUE2(uint32, "item count", "recipe") > 0; }
@@ -477,14 +626,14 @@ bool UseRandomQuestItem::Execute(Event /*event*/)
 
     bool used = UseItem(item, goTarget, nullptr, unitTarget);
     if (used)
-        botAI->SetNextCheckDelay(sPlayerbotAIConfig.globalCoolDown);
+        botAI->SetNextCheckDelay(sPlayerbotAIConfig.GlobalCoolDown);
 
     return used;
 }
 
 bool UseRandomQuestItem::isUseful()
 {
-    return !botAI->HasActivePlayerMaster() && !bot->InBattleground() && !bot->HasUnitState(UNIT_STATE_IN_FLIGHT);
+    return !IsRealPlayer(botAI->GetMaster()) && !bot->InBattleground() && !bot->HasUnitState(UNIT_STATE_IN_FLIGHT);
 }
 
 bool UseRandomQuestItem::isPossible() { return AI_VALUE2(uint32, "item count", "quest") > 0; }

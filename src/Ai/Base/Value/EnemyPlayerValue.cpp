@@ -1,10 +1,11 @@
 /*
- * Copyright (C) 2016+ AzerothCore <www.azerothcore.org>, released under GNU AGPL v3 license, you may redistribute it
- * and/or modify it under version 3 of the License, or (at your option), any later version.
+ * This file is part of the mod-playerbots module for AzerothCore. See AUTHORS file for Copyright
+ * information; released under GNU GPL v2 license, redistribute/modify under version 2 of the License,
+ * or (at your option) any later version.
  */
 
 #include "EnemyPlayerValue.h"
-
+#include "CombatManager.h"
 #include "Playerbots.h"
 #include "ServerFacade.h"
 #include "Vehicle.h"
@@ -21,7 +22,7 @@ bool NearestEnemyPlayersValue::AcceptUnit(Unit* unit)
         !sPlayerbotAIConfig.IsPvpProhibited(enemy->GetZoneId(), enemy->GetAreaId()) &&
         !enemy->HasFlag(UNIT_FIELD_FLAGS, UNIT_FLAG_NON_ATTACKABLE | UNIT_FLAG_NON_ATTACKABLE_2) &&
         ((inCannon || !enemy->HasFlag(UNIT_FIELD_FLAGS, UNIT_FLAG_NOT_SELECTABLE))) &&
-        /*!enemy->HasStealthAura() && !enemy->HasInvisibilityAura()*/ enemy->CanSeeOrDetect(bot) &&
+        /*!enemy->HasStealthAura() && !enemy->HasInvisibilityAura()*/ (bot->InBattleground() ? bot->CanSeeOrDetect(enemy) : enemy->CanSeeOrDetect(bot)) &&
         !(enemy->HasSpiritOfRedemptionAura()))
     {
         // If with master, only attack if master is PvP flagged
@@ -39,46 +40,36 @@ Unit* EnemyPlayerValue::Calculate()
 {
     bool controllingCannon = false;
     bool controllingVehicle = false;
+    bool passenger = false;
     if (Vehicle* vehicle = bot->GetVehicle())
     {
         VehicleSeatEntry const* seat = vehicle->GetSeatForPassenger(bot);
-        if (!seat || !seat->CanControl())  // not in control of vehicle so cant attack anyone
-            return nullptr;
-        VehicleEntry const* vi = vehicle->GetVehicleInfo();
-        if (vi && vi->m_flags & VEHICLE_FLAG_FIXED_POSITION)
+        if (!seat || (!seat->CanControl() && !(seat->m_flags & VEHICLE_SEAT_FLAG_CAN_ATTACK)))
+            return nullptr;  // a passenger seat that can't attack
+        if (!seat->CanControl())
+            passenger = true;  // fights from its seat: it can't close in
+        else if (botAI->IsInVehicle(false, false, false, false, true))
             controllingCannon = true;
         else
             controllingVehicle = true;
     }
 
-    // 1. Check units we are currently in combat with.
+    // 1. Check units we are currently in PvP combat with.
     std::vector<Unit*> targets;
     Unit* pVictim = bot->GetVictim();
-    HostileReference* pReference = bot->getHostileRefMgr().getFirst();
-    while (pReference)
+    for (auto const& [guid, combatRef] : bot->GetCombatManager().GetPvPCombatRefs())
     {
-        ThreatMgr* threatMgr = pReference->GetSource();
-        if (Unit* pTarget = threatMgr->GetOwner())
-        {
-            if (pTarget != pVictim && pTarget->IsPlayer() && pTarget->CanSeeOrDetect(bot) &&
-                bot->IsWithinDist(pTarget, VISIBILITY_DISTANCE_NORMAL))
-            {
-                if (bot->GetTeamId() == TEAM_HORDE)
-                {
-                    if (pTarget->HasAura(23333))
-                        return pTarget;
-                }
-                else
-                {
-                    if (pTarget->HasAura(23335))
-                        return pTarget;
-                }
+        Unit* pTarget = combatRef->GetOther(bot);
+        if (!pTarget || pTarget == pVictim || !pTarget->IsPlayer() ||
+            !(bot->InBattleground() ? bot->CanSeeOrDetect(pTarget) : pTarget->CanSeeOrDetect(bot)) ||
+            !bot->IsWithinDist(pTarget, VISIBILITY_DISTANCE_NORMAL))
+            continue;
 
-                targets.push_back(pTarget);
-            }
-        }
+        if ((bot->GetTeamId() == TEAM_HORDE && pTarget->HasAura(23333)) ||
+            (bot->GetTeamId() == TEAM_ALLIANCE && pTarget->HasAura(23335)))
+            return pTarget;
 
-        pReference = pReference->next();
+        targets.push_back(pTarget);
     }
 
     if (!targets.empty())
@@ -120,7 +111,8 @@ Unit* EnemyPlayerValue::Calculate()
 
         // Aggro weak enemies from further away.
         // If controlling mobile vehicle only agro close enemies (otherwise will never reach objective)
-        uint32 const aggroDistance = controllingVehicle                                               ? 5.0f
+        uint32 const aggroDistance = passenger                                                        ? 30.0f
+                                     : controllingVehicle                                             ? 5.0f
                                      : (controllingCannon || bot->GetHealth() > pTarget->GetHealth()) ? maxAggroDistance
                                                                                                       : 20.0f;
         if (!bot->IsWithinDist(pTarget, aggroDistance))
@@ -147,7 +139,8 @@ Unit* EnemyPlayerValue::Calculate()
 
                 if (Unit* pAttacker = pMember->getAttackerForHelper())
                     if (pAttacker->IsPlayer() && bot->IsWithinDist(pAttacker, maxAggroDistance * 2.0f) &&
-                        bot->IsWithinLOSInMap(pAttacker) && pAttacker != pVictim && pAttacker->CanSeeOrDetect(bot))
+                        bot->IsWithinLOSInMap(pAttacker) && pAttacker != pVictim &&
+                        (bot->InBattleground() ? bot->CanSeeOrDetect(pAttacker) : pAttacker->CanSeeOrDetect(bot)))
                         return pAttacker;
             }
         }

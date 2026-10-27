@@ -1,10 +1,11 @@
 /*
- * Copyright (C) 2016+ AzerothCore <www.azerothcore.org>, released under GNU AGPL v3 license, you may redistribute it
- * and/or modify it under version 3 of the License, or (at your option), any later version.
+ * This file is part of the mod-playerbots module for AzerothCore. See AUTHORS file for Copyright
+ * information; released under GNU GPL v2 license, redistribute/modify under version 2 of the License,
+ * or (at your option) any later version.
  */
 
-#ifndef PLAYERBOT_QUEUE_H
-#define PLAYERBOT_QUEUE_H
+#ifndef PLAYERBOTS_QUEUE_H
+#define PLAYERBOTS_QUEUE_H
 
 #include "Action.h"
 #include "Common.h"
@@ -56,7 +57,7 @@ public:
     /**
      * @brief Removes and deletes expired actions from the queue
      *
-     * Uses sPlayerbotAIConfig.expireActionTime to determine if actions have expired.
+     * Uses sPlayerbotAIConfig.ExpireActionTime to determine if actions have expired.
      * Both the ActionNode and ActionBasket are deleted for expired actions.
      */
     void RemoveExpired();

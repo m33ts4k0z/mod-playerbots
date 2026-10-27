@@ -1,18 +1,19 @@
 /*
- * Copyright (C) 2016+ AzerothCore <www.azerothcore.org>, released under GNU AGPL v3 license, you may redistribute it
- * and/or modify it under version 3 of the License, or (at your option), any later version.
+ * This file is part of the mod-playerbots module for AzerothCore. See AUTHORS file for Copyright
+ * information; released under GNU GPL v2 license, redistribute/modify under version 2 of the License,
+ * or (at your option) any later version.
  */
 
-#ifndef _PLAYERBOT_VALUE_H
-#define _PLAYERBOT_VALUE_H
-
-#include <time.h>
+#ifndef PLAYERBOTS_VALUE_H
+#define PLAYERBOTS_VALUE_H
 
 #include "AiObject.h"
 #include "ObjectGuid.h"
 #include "PerfMonitor.h"
 #include "Timer.h"
 #include "Unit.h"
+#include <time.h>
+#include <unordered_map>
 
 class PlayerbotAI;
 class Unit;
@@ -61,7 +62,7 @@ public:
     CalculatedValue(PlayerbotAI* botAI, std::string const name = "value", uint32 checkInterval = 1)
         : UntypedValue(botAI, name),
           checkInterval(
-              checkInterval == 1 ? 1 : (checkInterval < 100 ? checkInterval * 1000 : checkInterval)) /*turn s -> ms?*/,
+              checkInterval == 1 ? 1 : (checkInterval < 100 ? checkInterval * IN_MILLISECONDS : checkInterval)),
           lastCheckTime(0)
     {
     }
@@ -72,11 +73,8 @@ public:
     {
         if (checkInterval < 2)
         {
-            // PerfMonitorOperation* pmo = sPerfMonitor.start(PERF_MON_VALUE, this->getName(),
-            // this->context ? &this->context->performanceStack : nullptr);
+            PerfMonitorScope scope(GetPerfData());
             value = Calculate();
-            // if (pmo)
-            //     pmo->finish();
         }
         else
         {
@@ -84,11 +82,8 @@ public:
             if (!lastCheckTime || now - lastCheckTime >= checkInterval)
             {
                 lastCheckTime = now;
-                // PerfMonitorOperation* pmo = sPerfMonitor.start(PERF_MON_VALUE, this->getName(),
-                // this->context ? &this->context->performanceStack : nullptr);
+                PerfMonitorScope scope(GetPerfData());
                 value = Calculate();
-                // if (pmo)
-                //     pmo->finish();
             }
         }
         return value;
@@ -105,11 +100,8 @@ public:
     {
         if (checkInterval < 2)
         {
-            // PerfMonitorOperation* pmo = sPerfMonitor.start(PERF_MON_VALUE, this->getName(),
-            // this->context ? &this->context->performanceStack : nullptr);
+            PerfMonitorScope scope(GetPerfData());
             value = Calculate();
-            // if (pmo)
-            //     pmo->finish();
         }
         else
         {
@@ -117,11 +109,8 @@ public:
             if (!lastCheckTime || now - lastCheckTime >= checkInterval)
             {
                 lastCheckTime = now;
-                // PerfMonitorOperation* pmo = sPerfMonitor.start(PERF_MON_VALUE, this->getName(),
-                // this->context ? &this->context->performanceStack : nullptr);
+                PerfMonitorScope scope(GetPerfData());
                 value = Calculate();
-                // if (pmo)
-                //     pmo->finish();
             }
         }
         return value;
@@ -133,9 +122,21 @@ public:
 protected:
     virtual T Calculate() = 0;
 
+    PerformanceData* GetPerfData()
+    {
+        if (!PerfMonitor::IsEnabled())
+            return nullptr;
+
+        if (!perfData)
+            perfData = sPerfMonitor.acquire(PERF_MON_VALUE, getName());
+
+        return perfData;
+    }
+
     uint32 checkInterval;
     uint32 lastCheckTime;
     T value;
+    PerformanceData* perfData = nullptr;
 };
 
 template <class T>
@@ -153,12 +154,8 @@ public:
         if (!this->lastCheckTime)
         {
             this->lastCheckTime = now;
-
-            PerfMonitorOperation* pmo = sPerfMonitor.start(
-                PERF_MON_VALUE, this->getName(), this->context ? &this->context->performanceStack : nullptr);
+            PerfMonitorScope scope(this->GetPerfData());
             this->value = this->Calculate();
-            if (pmo)
-                pmo->finish();
         }
 
         return this->value;
@@ -387,24 +384,6 @@ public:
     }
 };
 
-class LastFleeAngleValue : public ManualSetValue<float>
-{
-public:
-    LastFleeAngleValue(PlayerbotAI* botAI, float defaultValue = 0.0f, std::string const name = "last flee angle")
-        : ManualSetValue<float>(botAI, defaultValue, name)
-    {
-    }
-};
-
-class LastFleeTimestampValue : public ManualSetValue<uint32>
-{
-public:
-    LastFleeTimestampValue(PlayerbotAI* botAI, uint32 defaultValue = 0, std::string const name = "last flee timestamp")
-        : ManualSetValue<uint32>(botAI, defaultValue, name)
-    {
-    }
-};
-
 class RecentlyFleeInfo : public ManualSetValue<std::list<FleeInfo>&>
 {
 public:
@@ -414,6 +393,19 @@ public:
     }
 private:
     std::list<FleeInfo> data = {};
+};
+
+class MissingBuffReagentNoticeValue : public ManualSetValue<std::unordered_map<std::string, uint32>&>
+{
+public:
+    MissingBuffReagentNoticeValue(
+        PlayerbotAI* botAI, std::string const name = "missing buff reagent notice")
+        : ManualSetValue<std::unordered_map<std::string, uint32>&>(botAI, noticeTimes, name)
+    {
+    }
+
+private:
+    std::unordered_map<std::string, uint32> noticeTimes;
 };
 
 #endif

@@ -1,18 +1,18 @@
 /*
- * Copyright (C) 2016+ AzerothCore <www.azerothcore.org>, released under GNU AGPL v3 license, you may redistribute it
- * and/or modify it under version 3 of the License, or (at your option), any later version.
+ * This file is part of the mod-playerbots module for AzerothCore. See AUTHORS file for Copyright
+ * information; released under GNU GPL v2 license, redistribute/modify under version 2 of the License,
+ * or (at your option) any later version.
  */
 
-#ifndef _PLAYERBOT_ENGINE_H
-#define _PLAYERBOT_ENGINE_H
-
-#include <map>
+#ifndef PLAYERBOTS_ENGINE_H
+#define PLAYERBOTS_ENGINE_H
 
 #include "Multiplier.h"
 #include "PlayerbotAIAware.h"
 #include "Queue.h"
 #include "Strategy.h"
 #include "Trigger.h"
+#include <map>
 
 class Action;
 class ActionNode;
@@ -64,12 +64,13 @@ class Engine : public PlayerbotAIAware
 public:
     Engine(PlayerbotAI* botAI, AiObjectContext* factory);
 
-    void Init();
+    virtual void Init();
     void addStrategy(std::string const name, bool init = true);
     void addStrategies(std::string first, ...);
     void addStrategiesNoInit(std::string first, ...);
     bool removeStrategy(std::string const name, bool init = true);
     bool HasStrategy(std::string const name);
+    Strategy* GetStrategy(std::string const name);
     void removeAllStrategies();
     void toggleStrategy(std::string const name);
     std::string const ListStrategies();
@@ -85,27 +86,31 @@ public:
 
     void removeActionExecutionListener(ActionExecutionListener* listener) { actionExecutionListeners.Remove(listener); }
     bool HasStrategyType(StrategyType type) { return strategyTypeMask & type; }
+    bool HasTargetExclusions() const { return hasTargetExclusions; }
+    std::vector<Multiplier*> const& GetMultipliers() const { return multipliers; }
     virtual ~Engine(void);
 
     bool testMode;
 
 private:
-    bool MultiplyAndPush(std::vector<NextAction> actions, float forceRelevance, bool skipPrerequisites, Event event,
-                         const char* pushType);
-    void Reset();
-    void ProcessTriggers(bool minimal);
+    std::string const ResolveStrategyName(std::string const name);
     void PushDefaultActions();
-    void PushAgain(ActionNode* actionNode, float relevance, Event event);
     ActionNode* CreateActionNode(std::string const name);
-    Action* InitializeAction(ActionNode* actionNode);
-    bool ListenAndExecute(Action* action, Event event);
 
-    void LogAction(char const* format, ...);
     void LogValues();
 
     ActionExecutionListeners actionExecutionListeners;
 
 protected:
+    void LogAction(char const* format, ...);
+    bool MultiplyAndPush(std::vector<NextAction> actions, float forceRelevance, bool skipPrerequisites, Event event,
+                         char const* pushType);
+    void Reset();
+    void ProcessTriggers(bool minimal);
+    void PushAgain(ActionNode* actionNode, float relevance, Event event);
+    virtual Action* InitializeAction(ActionNode* actionNode);
+    virtual bool ListenAndExecute(Action* action, Event event);
+
     Queue queue;
     std::vector<TriggerNode*> triggers;
     std::vector<Multiplier*> multipliers;
@@ -114,6 +119,7 @@ protected:
     float lastRelevance;
     std::string lastAction;
     uint32 strategyTypeMask;
+    bool hasTargetExclusions = false;
     NamedObjectFactoryList<ActionNode> actionNodeFactories;
 };
 

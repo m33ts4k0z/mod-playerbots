@@ -1,10 +1,10 @@
 /*
- * Copyright (C) 2016+ AzerothCore <www.azerothcore.org>, released under GNU AGPL v3 license, you may redistribute it
- * and/or modify it under version 3 of the License, or (at your option), any later version.
+ * This file is part of the mod-playerbots module for AzerothCore. See AUTHORS file for Copyright
+ * information; released under GNU GPL v2 license, redistribute/modify under version 2 of the License,
+ * or (at your option) any later version.
  */
 
 #include "DruidShapeshiftActions.h"
-
 #include "Playerbots.h"
 
 bool CastBearFormAction::isUseful()
@@ -41,18 +41,19 @@ bool CastCasterFormAction::isUseful()
 {
     return botAI->HasAnyAuraOf(GetTarget(), "dire bear form", "bear form", "cat form", "travel form", "aquatic form",
                                "flight form", "swift flight form", "moonkin form", nullptr) &&
-           AI_VALUE2(uint8, "mana", "self target") > sPlayerbotAIConfig.mediumHealth;
+           AI_VALUE2(uint8, "mana", "self target") > sPlayerbotAIConfig.MediumHealth;
 }
 
-bool CastCancelTreeFormAction::Execute(Event /*event*/)
+bool CastCancelDruidAction::Execute(Event /*event*/)
 {
-    botAI->RemoveAura("tree of life");
+    botAI->RemoveAura(auraName);
     return true;
 }
 
-bool CastCancelTreeFormAction::isUseful() { return botAI->HasAura(33891, bot); }
+bool CastCancelDruidAction::isUseful() { return bot->HasAura(auraId); }
 
 bool CastTreeFormAction::isUseful()
 {
-    return GetTarget() && CastSpellAction::isUseful() && !botAI->HasAura(33891, bot);
+    constexpr uint32 SPELL_TREE_OF_LIFE = 33891;
+    return GetTarget() && CastSpellAction::isUseful() && !bot->HasAura(SPELL_TREE_OF_LIFE);
 }

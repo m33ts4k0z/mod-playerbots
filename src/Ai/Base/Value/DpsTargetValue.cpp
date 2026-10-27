@@ -1,28 +1,27 @@
 /*
- * Copyright (C) 2016+ AzerothCore <www.azerothcore.org>, released under GNU AGPL v3 license, you may redistribute it
- * and/or modify it under version 3 of the License, or (at your option), any later version.
+ * This file is part of the mod-playerbots module for AzerothCore. See AUTHORS file for Copyright
+ * information; released under GNU GPL v2 license, redistribute/modify under version 2 of the License,
+ * or (at your option) any later version.
  */
 
 #include "DpsTargetValue.h"
-
 #include "PlayerbotAIConfig.h"
 #include "Playerbots.h"
+#include "Strategy.h"
 
 class FindMaxThreatGapTargetStrategy : public FindTargetStrategy
 {
 public:
     FindMaxThreatGapTargetStrategy(PlayerbotAI* botAI) : FindTargetStrategy(botAI), minThreat(0) {}
 
-    void CheckAttacker(Unit* attacker, ThreatMgr* threatMgr) override
+    void CheckAttacker(Unit* attacker, ThreatManager* threatMgr) override
     {
         if (!attacker->IsAlive())
-        {
             return;
-        }
+
         if (foundHighPriority)
-        {
             return;
-        }
+
         if (IsHighPriority(attacker))
         {
             result = attacker;
@@ -32,7 +31,7 @@ public:
         if (!result || CalcThreatGap(attacker, threatMgr) > CalcThreatGap(result, &result->GetThreatMgr()))
             result = attacker;
     }
-    float CalcThreatGap(Unit* attacker, ThreatMgr* threatMgr)
+    float CalcThreatGap(Unit* attacker, ThreatManager* threatMgr)
     {
         Unit* victim = attacker->GetVictim();
         return threatMgr->GetThreat(victim) - threatMgr->GetThreat(attacker);
@@ -52,7 +51,7 @@ public:
         result = nullptr;
     }
 
-    void CheckAttacker(Unit* attacker, ThreatMgr* threatMgr) override
+    void CheckAttacker(Unit* attacker, ThreatManager* /*threatMgr*/) override
     {
         if (Group* group = botAI->GetBot()->GetGroup())
         {
@@ -61,13 +60,11 @@ public:
                 return;
         }
         if (!attacker->IsAlive())
-        {
             return;
-        }
+
         if (foundHighPriority)
-        {
             return;
-        }
+
         if (IsHighPriority(attacker))
         {
             result = attacker;
@@ -90,42 +87,35 @@ public:
         int new_level = GetIntervalLevel(new_unit);
         int old_level = GetIntervalLevel(old_unit);
         if (new_level != old_level)
-        {
             return new_level > old_level;
-        }
+
         int32_t level = new_level;
         if (level % 10 == 2 || level % 10 == 0)
-        {
             return new_time < old_time;
-        }
         // dont switch targets when all of them with low health
         Unit* currentTarget = botAI->GetAiObjectContext()->GetValue<Unit*>("current target")->Get();
         if (currentTarget == new_unit)
-        {
             return true;
-        }
+
         if (currentTarget == old_unit)
-        {
             return false;
-        }
+
         return new_time > old_time;
     }
     int32_t GetIntervalLevel(Unit* unit)
     {
         float time = unit->GetHealth() / dps_;
         float dis = unit->GetDistance(botAI->GetBot());
-        float attackRange =
-            botAI->IsRanged(botAI->GetBot()) ? sPlayerbotAIConfig.spellDistance : sPlayerbotAIConfig.meleeDistance;
+        float attackRange = PlayerbotAI::IsRanged(botAI->GetBot()) ? sPlayerbotAIConfig.SpellDistance
+                                                                   : sPlayerbotAIConfig.MeleeDistance;
         attackRange += 5.0f;
         int level = dis < attackRange ? 10 : 0;
         if (time >= 5 && time <= 30)
-        {
             return level + 2;
-        }
+
         if (time > 30)
-        {
             return level;
-        }
+
         return level + 1;
     }
 
@@ -143,7 +133,7 @@ public:
     {
     }
 
-    void CheckAttacker(Unit* attacker, ThreatMgr*) override
+    void CheckAttacker(Unit* attacker, ThreatManager*) override
     {
         if (Group* group = botAI->GetBot()->GetGroup())
         {
@@ -152,13 +142,11 @@ public:
                 return;
         }
         if (!attacker->IsAlive())
-        {
             return;
-        }
+
         if (foundHighPriority)
-        {
             return;
-        }
+
         if (IsHighPriority(attacker))
         {
             result = attacker;
@@ -186,17 +174,16 @@ public:
         // attack enemy in range and with lowest health
         int level = new_level;
         if (level == 10)
-        {
             return new_time < old_time;
-        }
+
         // all targets are far away, choose the closest one
         return botAI->GetBot()->GetDistance(new_unit) < botAI->GetBot()->GetDistance(old_unit);
     }
     int32_t GetIntervalLevel(Unit* unit)
     {
         float dis = unit->GetDistance(botAI->GetBot());
-        float attackRange =
-            botAI->IsRanged(botAI->GetBot()) ? sPlayerbotAIConfig.spellDistance : sPlayerbotAIConfig.meleeDistance;
+        float attackRange = PlayerbotAI::IsRanged(botAI->GetBot()) ? sPlayerbotAIConfig.SpellDistance
+                                                                   : sPlayerbotAIConfig.MeleeDistance;
         attackRange += 5.0f;
         int level = dis < attackRange ? 10 : 0;
         return level;
@@ -216,7 +203,7 @@ public:
     {
     }
 
-    void CheckAttacker(Unit* attacker, ThreatMgr*) override
+    void CheckAttacker(Unit* attacker, ThreatManager*) override
     {
         if (Group* group = botAI->GetBot()->GetGroup())
         {
@@ -225,13 +212,11 @@ public:
                 return;
         }
         if (!attacker->IsAlive())
-        {
             return;
-        }
+
         if (foundHighPriority)
-        {
             return;
-        }
+
         if (IsHighPriority(attacker))
         {
             result = attacker;
@@ -254,9 +239,8 @@ public:
         int new_level = GetIntervalLevel(new_unit);
         int old_level = GetIntervalLevel(old_unit);
         if (new_level != old_level)
-        {
             return new_level > old_level;
-        }
+
         // attack enemy in range and with lowest health
         int level = new_level;
         Player* bot = botAI->GetBot();
@@ -264,9 +248,8 @@ public:
         {
             Unit* combo_unit = bot->GetComboTarget();
             if (new_unit == combo_unit)
-            {
                 return true;
-            }
+
             return new_time < old_time;
         }
         // all targets are far away, choose the closest one
@@ -275,8 +258,8 @@ public:
     int32_t GetIntervalLevel(Unit* unit)
     {
         float dis = unit->GetDistance(botAI->GetBot());
-        float attackRange =
-            botAI->IsRanged(botAI->GetBot()) ? sPlayerbotAIConfig.spellDistance : sPlayerbotAIConfig.meleeDistance;
+        float attackRange = PlayerbotAI::IsRanged(botAI->GetBot()) ? sPlayerbotAIConfig.SpellDistance
+                                                                   : sPlayerbotAIConfig.MeleeDistance;
         attackRange += 5.0f;
         int level = dis < attackRange ? 10 : 0;
         return level;
@@ -289,29 +272,30 @@ protected:
 
 Unit* DpsTargetValue::Calculate()
 {
+    GuidSet const exclusions = GatherStrategyTargetExclusions(botAI, TargetValueExclusionType::DpsTarget);
     Unit* rti = RtiTargetValue::Calculate();
-    if (rti)
+    if (rti && exclusions.find(rti->GetGUID()) == exclusions.end())
         return rti;
 
     float dps = AI_VALUE(float, "estimated group dps");
 
     if (botAI->GetNearGroupMemberCount() > 3)
     {
-        if (botAI->IsCaster(bot))
+        if (PlayerbotAI::IsCaster(bot))
         {
             // Caster find target strategy avoids casting spells on enemies
             // with too low health to ensure the effectiveness of casting
             CasterFindTargetSmartStrategy strategy(botAI, dps);
-            return TargetValue::FindTarget(&strategy);
+            return TargetValue::FindTarget(&strategy, exclusions);
         }
-        else if (botAI->IsCombo(bot))
+        else if (PlayerbotAI::IsCombo(bot))
         {
             ComboFindTargetSmartStrategy strategy(botAI, dps);
-            return TargetValue::FindTarget(&strategy);
+            return TargetValue::FindTarget(&strategy, exclusions);
         }
     }
     GeneralFindTargetSmartStrategy strategy(botAI, dps);
-    return TargetValue::FindTarget(&strategy);
+    return TargetValue::FindTarget(&strategy, exclusions);
 }
 
 class FindMaxHpTargetStrategy : public FindTargetStrategy
@@ -319,7 +303,7 @@ class FindMaxHpTargetStrategy : public FindTargetStrategy
 public:
     FindMaxHpTargetStrategy(PlayerbotAI* botAI) : FindTargetStrategy(botAI), maxHealth(0) {}
 
-    void CheckAttacker(Unit* attacker, ThreatMgr*) override
+    void CheckAttacker(Unit* attacker, ThreatManager*) override
     {
         if (Group* group = botAI->GetBot()->GetGroup())
         {
@@ -338,10 +322,11 @@ protected:
 
 Unit* DpsAoeTargetValue::Calculate()
 {
+    GuidSet const exclusions = GatherStrategyTargetExclusions(botAI, TargetValueExclusionType::DpsTarget);
     Unit* rti = RtiTargetValue::Calculate();
-    if (rti)
+    if (rti && exclusions.find(rti->GetGUID()) == exclusions.end())
         return rti;
 
     FindMaxHpTargetStrategy strategy(botAI);
-    return TargetValue::FindTarget(&strategy);
+    return TargetValue::FindTarget(&strategy, exclusions);
 }

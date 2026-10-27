@@ -1,18 +1,24 @@
 /*
- * Copyright (C) 2016+ AzerothCore <www.azerothcore.org>, released under GNU AGPL v3 license, you may redistribute it
- * and/or modify it under version 3 of the License, or (at your option), any later version.
+ * This file is part of the mod-playerbots module for AzerothCore. See AUTHORS file for Copyright
+ * information; released under GNU GPL v2 license, redistribute/modify under version 2 of the License,
+ * or (at your option) any later version.
  */
 
-#ifndef _PLAYERBOT_TARGETVALUE_H
-#define _PLAYERBOT_TARGETVALUE_H
+#ifndef PLAYERBOTS_TARGETVALUE_H
+#define PLAYERBOTS_TARGETVALUE_H
 
 #include "NamedObjectContext.h"
 #include "TravelMgr.h"
 #include "Value.h"
 
 class PlayerbotAI;
-class ThreatMgr;
+class ThreatManager;
 class Unit;
+struct Position;
+enum class TargetValueExclusionType : uint8;
+
+GuidSet GatherStrategyTargetExclusions(PlayerbotAI* botAI, TargetValueExclusionType type);
+bool HasEnoughAoeTargets(PlayerbotAI* botAI, Position const& center, float range, uint32 minCount);
 
 class FindTargetStrategy
 {
@@ -20,7 +26,7 @@ public:
     FindTargetStrategy(PlayerbotAI* botAI) : result(nullptr), botAI(botAI) {}
 
     Unit* GetResult();
-    virtual void CheckAttacker(Unit* attacker, ThreatMgr* threatMgr) = 0;
+    virtual void CheckAttacker(Unit* attacker, ThreatManager* threatMgr) = 0;
     void GetPlayerCount(Unit* creature, uint32* tankCount, uint32* dpsCount);
     bool IsHighPriority(Unit* attacker);
 
@@ -50,7 +56,7 @@ public:
     }
 
 protected:
-    Unit* FindTarget(FindTargetStrategy* strategy);
+    Unit* FindTarget(FindTargetStrategy* strategy, GuidSet const& exclusions = {});
 };
 
 class RpgTargetValue : public ManualSetValue<GuidPosition>
@@ -76,7 +82,8 @@ public:
 class LastLongMoveValue : public CalculatedValue<WorldPosition>
 {
 public:
-    LastLongMoveValue(PlayerbotAI* botAI) : CalculatedValue<WorldPosition>(botAI, "last long move", 30 * 1000) {}
+    LastLongMoveValue(PlayerbotAI* botAI)
+        : CalculatedValue<WorldPosition>(botAI, "last long move", 30 * IN_MILLISECONDS) {}
 
     WorldPosition Calculate() override;
 };
@@ -84,7 +91,7 @@ public:
 class HomeBindValue : public CalculatedValue<WorldPosition>
 {
 public:
-    HomeBindValue(PlayerbotAI* botAI) : CalculatedValue<WorldPosition>(botAI, "home bind", 30 * 1000) {}
+    HomeBindValue(PlayerbotAI* botAI) : CalculatedValue<WorldPosition>(botAI, "home bind", 30 * IN_MILLISECONDS) {}
 
     WorldPosition Calculate() override;
 };
@@ -116,10 +123,19 @@ public:
     }
 };
 
+class PullStrategyTargetValue : public ManualSetValue<ObjectGuid>
+{
+public:
+    PullStrategyTargetValue(PlayerbotAI* botAI, std::string const name = "pull strategy target")
+        : ManualSetValue<ObjectGuid>(botAI, ObjectGuid::Empty, name)
+    {
+    }
+};
+
 class FindTargetValue : public UnitCalculatedValue, public Qualified
 {
 public:
-    FindTargetValue(PlayerbotAI* ai) : UnitCalculatedValue(ai, "find target", /*2 * 1000*/ 1) {}
+    FindTargetValue(PlayerbotAI* botAI) : UnitCalculatedValue(botAI, "find target", /*2 * IN_MILLISECONDS*/ 1) {}
 
 public:
     Unit* Calculate();
@@ -128,16 +144,23 @@ public:
 class FindBossTargetStrategy : public FindTargetStrategy
 {
 public:
-    FindBossTargetStrategy(PlayerbotAI* ai) : FindTargetStrategy(ai) {}
-    virtual void CheckAttacker(Unit* attacker, ThreatMgr* threatManager);
+    FindBossTargetStrategy(PlayerbotAI* botAI) : FindTargetStrategy(botAI) {}
+    virtual void CheckAttacker(Unit* attacker, ThreatManager* threatManager);
 };
 
 class BossTargetValue : public TargetValue, public Qualified
 {
 public:
-    BossTargetValue(PlayerbotAI* ai) : TargetValue(ai, "boss target", 2 * 1000) {}
+    BossTargetValue(PlayerbotAI* botAI) : TargetValue(botAI, "boss target", 2 * IN_MILLISECONDS) {}
 
 public:
     Unit* Calculate();
 };
+
+class FocusHealTargetValue : public ManualSetValue<std::list<ObjectGuid>>
+{
+public:
+    FocusHealTargetValue(PlayerbotAI* botAI) : ManualSetValue<std::list<ObjectGuid>>(botAI, {}, "focus heal targets") {}
+};
+
 #endif

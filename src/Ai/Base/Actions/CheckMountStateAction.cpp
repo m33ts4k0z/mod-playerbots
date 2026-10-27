@@ -1,26 +1,34 @@
 /*
- * Copyright (C) 2016+ AzerothCore <www.azerothcore.org>, released under GNU AGPL v3 license, you may redistribute it
- * and/or modify it under version 3 of the License, or (at your option), any later version.
+ * This file is part of the mod-playerbots module for AzerothCore. See AUTHORS file for Copyright
+ * information; released under GNU GPL v2 license, redistribute/modify under version 2 of the License,
+ * or (at your option) any later version.
  */
 
 #include "CheckMountStateAction.h"
+#include "PlayerbotsDatabase.h"
+#include "AreaDefines.h"
 #include "BattleGroundTactics.h"
 #include "BattlegroundEY.h"
 #include "BattlegroundWS.h"
+#include "DBCStores.h"
 #include "Event.h"
 #include "PlayerbotAI.h"
 #include "PlayerbotAIConfig.h"
+#include "PlayerbotSpellRepository.h"
 #include "Playerbots.h"
 #include "ServerFacade.h"
 #include "SpellAuraEffects.h"
 
-// Define the static map / init bool for caching bot preferred mount data globally
-std::unordered_map<uint32, PreferredMountCache> CheckMountStateAction::mountCache;
-bool CheckMountStateAction::preferredMountTableChecked = false;
+static constexpr uint32 SPELL_COLD_WEATHER_FLYING = 54197;
+static constexpr float PARACHUTE_LAND_THRESHOLD = 15.0f;
 
-MountData CollectMountData(const Player* bot)
+// Preferred mounts per bot, loaded once at startup by LoadPreferredMounts()
+std::unordered_map<uint32, PreferredMountCache> CheckMountStateAction::mountCache;
+
+MountData CollectMountData(Player const* bot)
 {
     MountData data;
+    uint32 const ridingSkill = bot->GetPureSkillValue(SKILL_RIDING);
     for (auto& entry : bot->GetSpellMap())
     {
         uint32 spellId = entry.first;
@@ -29,6 +37,10 @@ MountData CollectMountData(const Player* bot)
             continue;
 
         if (entry.second->State == PLAYERSPELL_REMOVED || !entry.second->Active || spellInfo->IsPassive())
+            continue;
+
+        // The core casts a known mount without checking Riding.
+        if (PlayerbotSpellRepository::Instance().GetRequiredRidingSkill(spellInfo) > ridingSkill)
             continue;
 
         int32 effect1 = spellInfo->Effects[1].BasePoints;
@@ -57,6 +69,21 @@ MountData CollectMountData(const Player* bot)
 
 bool CheckMountStateAction::Execute(Event /*event*/)
 {
+    // Forced flight dismount:
+    // Bots get stale flight movement flags after a forced dismount (e.g: Dalaran) because the post landing dismount cleanup
+    // needs MSG_MOVE_FALL_LAND (a client opcode) and client movement packets. The stale flags cause the bot to be stuck with
+    // the parachute, or even keep the bot hovering indefinitely and block MMAP routing.
+    // Note: Without MSG_MOVE_FALL_LAND, HandleFall doesn't trigger, meaning bots don't get fall damage in forced dismounts anyway,
+    // so the parachute usage here is more of an immersion feature.
+    if (bot->HasFeatherFallAura())
+    {
+        float floorZ = bot->GetMapHeight(bot->GetPositionX(), bot->GetPositionY(), bot->GetPositionZ());
+        if (floorZ != INVALID_HEIGHT && floorZ != VMAP_INVALID_HEIGHT_VALUE &&
+            bot->GetPositionZ() - floorZ <= PARACHUTE_LAND_THRESHOLD)
+            bot->RemoveAurasByType(SPELL_AURA_FEATHER_FALL);
+    }
+    ClearStaleFlightFlags();
+
     // Determine if there are no attackers
     bool noAttackers = !AI_VALUE2(bool, "combat", "self target") || !AI_VALUE(uint8, "attacker count");
     bool enemy = AI_VALUE(Unit*, "enemy player target");
@@ -94,9 +121,10 @@ bool CheckMountStateAction::Execute(Event /*event*/)
     }
 
     bool inBattleground = bot->InBattleground();
+    bool const noRealMaster = (!master || master == bot);
 
     // If there is a master and bot not in BG, follow master's mount state regardless of group leader
-    if (master && !inBattleground)
+    if (!noRealMaster && !inBattleground)
     {
         if (ShouldFollowMasterMountState(master, noAttackers, shouldMount))
             return Mount();
@@ -110,8 +138,8 @@ bool CheckMountStateAction::Execute(Event /*event*/)
         return false;
     }
 
-    // If there is no master or bot in BG
-    if ((!master || inBattleground) && !bot->IsMounted() &&
+    // No real master (random bot or SelfBot) OR bot in BG
+    if ((noRealMaster || inBattleground) && !bot->IsMounted() &&
         noAttackers && shouldMount && !bot->IsInCombat())
         return Mount();
 
@@ -159,7 +187,7 @@ bool CheckMountStateAction::isUseful()
         return false;
 
     // Not useful when level lower than minimum required
-    if (bot->GetLevel() < sPlayerbotAIConfig.useGroundMountAtMinLevel)
+    if (bot->GetLevel() < sPlayerbotAIConfig.UseGroundMountAtMinLevel)
         return false;
 
     // Allow mounting while transformed only if the form allows it
@@ -199,7 +227,7 @@ bool CheckMountStateAction::Mount()
     // Get bot mount data
     MountData mountData = CollectMountData(bot);
     int32 masterMountType = GetMountType(master);
-    int32 masterSpeed = CalculateMasterMountSpeed(master, mountData);
+    int32 masterSpeed = CalculateMasterMountSpeed(master);
 
     // Try shapeshift
     if (TryForms(master, masterMountType, masterSpeed))
@@ -228,6 +256,44 @@ void CheckMountStateAction::Dismount()
 
     WorldPacket emptyPacket;
     bot->GetSession()->HandleCancelMountAuraOpcode(emptyPacket);
+
+    ClearStaleFlightFlags();
+}
+
+void CheckMountStateAction::ClearStaleFlightFlags()
+{
+    if (bot->HasIncreaseMountedFlightSpeedAura() || bot->HasFlyAura())
+        return;
+
+    if (bot->HasUnitMovementFlag(MOVEMENTFLAG_FLYING | MOVEMENTFLAG_DISABLE_GRAVITY))
+    {
+        bot->RemoveUnitMovementFlag(MOVEMENTFLAG_FLYING | MOVEMENTFLAG_DISABLE_GRAVITY | MOVEMENTFLAG_CAN_FLY);
+        if (!bot->IsRooted())
+            bot->SendMovementFlagUpdate();
+    }
+}
+
+void CheckMountStateAction::CompleteDismount(Player* bot)
+{
+    if (!bot || !bot->IsInWorld())
+        return;
+
+    float const x = bot->GetPositionX();
+    float const y = bot->GetPositionY();
+    float const startZ = bot->GetPositionZ();
+
+    float groundZ = startZ;
+    bot->UpdateAllowedPositionZ(x, y, groundZ);
+
+    bot->GetMotionMaster()->MoveFall();
+    MovementInfo fallInfo = bot->m_movementInfo;
+    // Need to set the start of the fall, otherwise the fall may start from too high of a Z and kill the bot.
+    bot->SetFallInformation(0, startZ);
+    fallInfo.pos.Relocate(x, y, groundZ);
+    bot->HandleFall(fallInfo);
+    // Re-anchor at the ground: Player::IsFalling() compares standing Z to this, so startZ reads as a fall.
+    bot->SetFallInformation(0, groundZ);
+    bot->RemoveUnitMovementFlag(MOVEMENTFLAG_FALLING | MOVEMENTFLAG_FALLING_FAR);
 }
 
 bool CheckMountStateAction::TryForms(Player* master, int32 masterMountType, int32 masterSpeed) const
@@ -239,7 +305,7 @@ bool CheckMountStateAction::TryForms(Player* master, int32 masterMountType, int3
     else if
         ((masterInShapeshiftForm == FORM_TRAVEL && botInShapeshiftForm == FORM_TRAVEL) ||
         ((masterInShapeshiftForm == FORM_FLIGHT || (masterMountType == 1 && masterSpeed == 149)) && botInShapeshiftForm == FORM_FLIGHT) ||
-        ((masterInShapeshiftForm == FORM_FLIGHT_EPIC || (masterMountType == 1 && masterSpeed == 279)) && botInShapeshiftForm == FORM_FLIGHT_EPIC))
+        ((masterInShapeshiftForm == FORM_FLIGHT_EPIC || (masterMountType == 1 && masterSpeed >= 279)) && botInShapeshiftForm == FORM_FLIGHT_EPIC))
         return true;
 
     // Check if master is in Travel Form and bot can do the same
@@ -265,7 +331,7 @@ bool CheckMountStateAction::TryForms(Player* master, int32 masterMountType, int3
     // Check if master is in Swift Flight Form or has an epic flying mount and bot can swift flight form
     if (botAI->CanCastSpell(SPELL_SWIFT_FLIGHT_FORM, bot, true) &&
         ((masterInShapeshiftForm == FORM_FLIGHT_EPIC && botInShapeshiftForm != FORM_FLIGHT_EPIC) ||
-        (masterMountType == 1 && masterSpeed == 279)))
+        (masterMountType == 1 && masterSpeed >= 279)))
     {
         botAI->CastSpell(SPELL_SWIFT_FLIGHT_FORM, bot);
 
@@ -277,69 +343,58 @@ bool CheckMountStateAction::TryForms(Player* master, int32 masterMountType, int3
     return false;
 }
 
+void CheckMountStateAction::LoadPreferredMounts()
+{
+    mountCache.clear();
+
+    PlayerbotsDatabasePreparedStatement* stmt = PlayerbotsDatabase.GetPreparedStatement(PLAYERBOTS_SEL_PREFERRED_MOUNTS);
+    PreparedQueryResult result = PlayerbotsDatabase.Query(stmt);
+    if (!result)
+        return;
+
+    uint32 totalResults = 0;
+    do
+    {
+        Field* fields = result->Fetch();
+        uint32 guid = fields[0].Get<uint32>();
+        uint32 spellId = fields[1].Get<uint32>();
+        uint32 mountType = fields[2].Get<uint32>();
+
+        if (mountType == 0)
+            mountCache[guid].groundMounts.push_back(spellId);
+        else if (mountType == 1)
+            mountCache[guid].flightMounts.push_back(spellId);
+
+        totalResults++;
+    } while (result->NextRow());
+
+    LOG_INFO("playerbots", "Preferred mounts initialized | Total records: {}", totalResults);
+}
+
 bool CheckMountStateAction::TryPreferredMount(Player* master) const
 {
     uint32 botGUID = bot->GetGUID().GetRawValue();
 
-    // Build cache (only once)
-    if (!preferredMountTableChecked)
-    {
-        // Verify preferred mounts table existance in the database
-        QueryResult checkTable = PlayerbotsDatabase.Query(
-            "SELECT EXISTS(SELECT * FROM information_schema.tables WHERE table_schema = 'acore_playerbots' AND table_name = 'playerbots_preferred_mounts')");
+    // mountCache is filled once on the world thread at startup and only read afterwards
+    auto itr = mountCache.find(botGUID);
+    if (itr == mountCache.end())
+        return false;
 
-        if (checkTable && checkTable->Fetch()[0].Get<uint32>() == 1)
-        {
-            preferredMountTableChecked = true;
-
-            // Cache all mounts of both types globally, for all entries
-            QueryResult result = PlayerbotsDatabase.Query("SELECT guid, spellid, type FROM playerbots_preferred_mounts");
-
-            if (result)
-            {
-                uint32 totalResults = 0;
-                while (auto row = result->Fetch())
-                {
-                    uint32 guid = row[0].Get<uint32>();
-                    uint32 spellId = row[1].Get<uint32>();
-                    uint32 mountType = row[2].Get<uint32>();
-
-                    if (mountType == 0)
-                        mountCache[guid].groundMounts.push_back(spellId);
-
-                    else if (mountType == 1)
-                        mountCache[guid].flightMounts.push_back(spellId);
-
-                    totalResults++;
-
-                    result->NextRow();
-                }
-                LOG_INFO("playerbots", "Preferred mounts initialized | Total records: {}", totalResults);
-            }
-        }
-        else // If the SQL table is missing, log an error and return false
-        {
-            preferredMountTableChecked = true;
-
-            LOG_DEBUG("playerbots", "Preferred mounts SQL table playerbots_preferred_mounts does not exist!");
-
-            return false;
-        }
-    }
+    PreferredMountCache const& preferred = itr->second;
 
     // Pick a random preferred mount from the selection, if available
     uint32 chosenMountId = 0;
 
-    if (GetMountType(master) == 0 && !mountCache[botGUID].groundMounts.empty())
+    if (GetMountType(master) == 0 && !preferred.groundMounts.empty())
     {
-        uint32 index = urand(0, mountCache[botGUID].groundMounts.size() - 1);
-        chosenMountId = mountCache[botGUID].groundMounts[index];
+        uint32 index = urand(0, preferred.groundMounts.size() - 1);
+        chosenMountId = preferred.groundMounts[index];
     }
 
-    else if (GetMountType(master) == 1 && !mountCache[botGUID].flightMounts.empty())
+    else if (GetMountType(master) == 1 && !preferred.flightMounts.empty())
     {
-        uint32 index = urand(0, mountCache[botGUID].flightMounts.size() - 1);
-        chosenMountId = mountCache[botGUID].flightMounts[index];
+        uint32 index = urand(0, preferred.flightMounts.size() - 1);
+        chosenMountId = preferred.flightMounts[index];
     }
 
     // No suitable preferred mount found
@@ -368,20 +423,20 @@ bool CheckMountStateAction::TryPreferredMount(Player* master) const
     return false;
 }
 
-bool CheckMountStateAction::TryRandomMountFiltered(const std::map<int32, std::vector<uint32>>& spells, int32 masterSpeed) const
+bool CheckMountStateAction::TryRandomMountFiltered(std::map<int32, std::vector<uint32>> const& spells, int32 masterSpeed) const
 {
-    for (auto const& pair : spells)
+    for (auto it = spells.rbegin(); it != spells.rend(); ++it)
     {
-        int32 currentSpeed = pair.first;
+        int32 currentSpeed = it->first;
 
         if ((masterSpeed > 59 && currentSpeed < 99) || (masterSpeed > 149 && currentSpeed < 279))
             continue;
 
         // Pick a random mount from the candidate group.
-        auto const& ids = pair.second;
+        auto const& ids = it->second;
         if (!ids.empty())
         {
-            // Required here as otherwise bots won't mount in BG's due to them constant moving
+            // Required here as otherwise bots won't mount in BGs due to them constant moving
             if (bot->isMoving())
                 bot->StopMoving();
 
@@ -402,7 +457,7 @@ float CheckMountStateAction::CalculateDismountDistance() const
     // Warrior bots should dismount far enough to charge (because it's important for generating some initial rage),
     // a real player would be riding toward enemy mashing the charge key but the bots won't cast charge while mounted.
     bool isMelee = PlayerbotAI::IsMelee(bot);
-    float dismountDistance = isMelee ? sPlayerbotAIConfig.meleeDistance + 2.0f : sPlayerbotAIConfig.spellDistance + 2.0f;
+    float dismountDistance = isMelee ? sPlayerbotAIConfig.MeleeDistance + 2.0f : sPlayerbotAIConfig.SpellDistance + 2.0f;
     return bot->getClass() == CLASS_WARRIOR ? std::max(18.0f, dismountDistance) : dismountDistance;
 }
 
@@ -413,7 +468,7 @@ float CheckMountStateAction::CalculateMountDistance() const
     // seconds:
     // 21 / 7  =  21 / 14 + 1.5  =  3   (7 = dismounted speed  14 = epic-mount speed  1.5 = mount-spell cast time)
     bool isMelee = PlayerbotAI::IsMelee(bot);
-    float baseDistance = isMelee ? sPlayerbotAIConfig.meleeDistance + 10.0f : sPlayerbotAIConfig.spellDistance + 10.0f;
+    float baseDistance = isMelee ? sPlayerbotAIConfig.MeleeDistance + 10.0f : sPlayerbotAIConfig.SpellDistance + 10.0f;
     return std::max(21.0f, baseDistance);
 }
 
@@ -422,29 +477,51 @@ bool CheckMountStateAction::ShouldFollowMasterMountState(Player* master, bool no
     bool isMasterMounted = master->IsMounted() || (masterInShapeshiftForm == FORM_FLIGHT ||
                                                     masterInShapeshiftForm == FORM_FLIGHT_EPIC ||
                                                     masterInShapeshiftForm == FORM_TRAVEL);
-    return isMasterMounted && !bot->IsMounted() && noAttackers &&
+    bool isBotMountedOrForm = bot->IsMounted() || botInShapeshiftForm == FORM_FLIGHT ||
+                              botInShapeshiftForm == FORM_FLIGHT_EPIC || botInShapeshiftForm == FORM_TRAVEL;
+    return isMasterMounted && !isBotMountedOrForm && noAttackers &&
         shouldMount && !bot->IsInCombat() && botAI->GetState() != BOT_STATE_COMBAT;
 }
 
 bool CheckMountStateAction::ShouldDismountForMaster(Player* master) const
 {
     bool isMasterMounted = master->IsMounted() || (masterInShapeshiftForm == FORM_FLIGHT ||
-                                                    masterInShapeshiftForm == FORM_FLIGHT_EPIC ||
-                                                    masterInShapeshiftForm == FORM_TRAVEL);
+                                                   masterInShapeshiftForm == FORM_FLIGHT_EPIC ||
+                                                   masterInShapeshiftForm == FORM_TRAVEL);
     return !isMasterMounted && bot->IsMounted();
 }
 
-int32 CheckMountStateAction::CalculateMasterMountSpeed(Player* master, const MountData& mountData) const
+static bool BotCanUseFlyingMount(Player const* bot)
+{
+    if (bot->GetPureSkillValue(SKILL_RIDING) < 225)
+        return false;
+
+    AreaTableEntry const* area = sAreaTableStore.LookupEntry(bot->GetAreaId());
+    if (!area || !area->IsFlyable())
+        return false;
+    if (area->flags & AREA_FLAG_NO_FLY_ZONE)
+        return false;
+
+    uint32 const vmap = GetVirtualMapForMapAndZone(bot->GetMapId(), bot->GetZoneId());
+    if (vmap == MAP_NORTHREND && !bot->HasSpell(SPELL_COLD_WEATHER_FLYING))
+        return false;
+
+    return true;
+}
+
+int32 CheckMountStateAction::CalculateMasterMountSpeed(Player* master) const
 {
     // Check riding skill and level requirements
     int32 ridingSkill = bot->GetPureSkillValue(SKILL_RIDING);
     int32 botLevel = bot->GetLevel();
 
-    if (ridingSkill <= 75 && botLevel < static_cast<int32>(sPlayerbotAIConfig.useFastGroundMountAtMinLevel))
+    if (ridingSkill <= 75 && botLevel < static_cast<int32>(sPlayerbotAIConfig.UseFastGroundMountAtMinLevel))
         return 59;
 
-    // If there is a master and bot not in BG, use master's aura effects.
-    if (master && !bot->InBattleground())
+    // check if bot has master and if master is self
+    bool const noRealMaster = (!master || master == bot);
+
+    if (!noRealMaster && !bot->InBattleground())
     {
         auto auraEffects = master->GetAuraEffectsByType(SPELL_AURA_MOUNTED);
         if (!auraEffects.empty())
@@ -458,27 +535,27 @@ int32 CheckMountStateAction::CalculateMasterMountSpeed(Player* master, const Mou
             return 279;
         else if (masterInShapeshiftForm == FORM_FLIGHT)
             return 149;
-    }
-    else
-    {
-        // Bots on their own.
-        int32 speed = mountData.maxSpeed;
-        if (bot->InBattleground() && speed > 99)
-            return 99;
-
-        return speed;
+        return 59;  // walk pace
     }
 
-    return 59;
+    // No real master OR battleground: pick speed by skill tier.
+    if (!bot->InBattleground() && BotCanUseFlyingMount(bot))
+        return (ridingSkill >= 300) ? 279 : 149;
+
+    int32 maxGround = (ridingSkill >= 150) ? 99 : 59;
+    if (bot->InBattleground() && maxGround > 99)
+        maxGround = 99;
+    return maxGround;
 }
 
 uint32 CheckMountStateAction::GetMountType(Player* master) const
 {
-    if (!master)
-        return 0;
+    bool const noRealMaster = (!master || master == bot);
+
+    if (noRealMaster)
+        return (!bot->InBattleground() && BotCanUseFlyingMount(bot)) ? 1 : 0;
 
     auto auraEffects = master->GetAuraEffectsByType(SPELL_AURA_MOUNTED);
-
     if (!auraEffects.empty())
     {
         SpellInfo const* masterSpell = auraEffects.front()->GetSpellInfo();

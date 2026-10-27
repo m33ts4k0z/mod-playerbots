@@ -1,9 +1,11 @@
 /*
- * Copyright (C) 2016+ AzerothCore <www.azerothcore.org>, released under GNU AGPL v3 license, you may redistribute it
- * and/or modify it under version 3 of the License, or (at your option), any later version.
+ * This file is part of the mod-playerbots module for AzerothCore. See AUTHORS file for Copyright
+ * information; released under GNU GPL v2 license, redistribute/modify under version 2 of the License,
+ * or (at your option) any later version.
  */
 
-#pragma once
+#ifndef PLAYERBOTS_ACTION_H
+#define PLAYERBOTS_ACTION_H
 
 #include "AiObject.h"
 #include "Event.h"
@@ -16,8 +18,7 @@ class NextAction
 {
 public:
     NextAction(std::string const name, float relevance = 0.0f)
-        : relevance(relevance), name(name) {}                                  // name after relevance - whipowill
-    NextAction(NextAction const& o) : relevance(o.relevance), name(o.name) {}  // name after relevance - whipowill
+        : relevance(relevance), name(name) {}  // name after relevance - whipowill
 
     std::string const getName() { return name; }
     float getRelevance() { return relevance; }
@@ -84,6 +85,7 @@ public:
     virtual std::vector<NextAction> getAlternatives() { return {}; }
     virtual std::vector<NextAction> getContinuers() { return {}; }
     virtual ActionThreatType getThreatType() { return ActionThreatType::None; }
+    virtual bool isUsefulWithoutControl() { return false; }
     void Update() {}
     void Reset() {}
     virtual Unit* GetTarget();
@@ -93,9 +95,20 @@ public:
     void setRelevance(uint32 relevance1) { relevance = relevance1; };
     virtual float getRelevance() { return relevance; }
 
+    // Reaction system
+    bool IsReaction() const { return reaction; }
+    void SetReaction(bool inReaction) { reaction = inReaction; }
+    uint32 GetDuration() const { return duration; }
+    void ResetDuration() { duration = 0; }
+    virtual bool ShouldReactionInterruptCast() const { return false; }
+    virtual bool ShouldReactionInterruptMovement() const { return false; }
+
 protected:
+    void SetDuration(uint32 inDuration) { duration = inDuration; }
     bool verbose;
     float relevance = 0;
+    bool reaction = false;
+    uint32 duration = 0;
 };
 
 class ActionNode
@@ -163,3 +176,5 @@ private:
     Event event;
     uint32_t created;
 };
+
+#endif

@@ -1,10 +1,10 @@
 /*
- * Copyright (C) 2016+ AzerothCore <www.azerothcore.org>, released under GNU AGPL v3 license, you may redistribute it
- * and/or modify it under version 3 of the License, or (at your option), any later version.
+ * This file is part of the mod-playerbots module for AzerothCore. See AUTHORS file for Copyright
+ * information; released under GNU GPL v2 license, redistribute/modify under version 2 of the License,
+ * or (at your option) any later version.
  */
 
 #include "LootRollAction.h"
-
 #include "Event.h"
 #include "Group.h"
 #include "ItemUsageValue.h"
@@ -19,13 +19,14 @@ bool LootRollAction::Execute(Event /*event*/)
     if (!group)
         return false;
 
-    std::vector<Roll*> rolls = group->GetRolls();
-    for (Roll*& roll : rolls)
+    std::vector<Roll const*> rolls = group->GetRolls();
+    bool voted = false;
+    for (Roll const* roll : rolls)
     {
-        if (roll->playerVote.find(bot->GetGUID())->second != NOT_EMITED_YET)
-        {
+        auto voteItr = roll->playerVote.find(bot->GetGUID());
+        if (voteItr == roll->playerVote.end() || voteItr->second != NOT_EMITED_YET)
             continue;
-        }
+
         ObjectGuid guid = roll->itemGUID;
         uint32 itemId = roll->itemid;
         int32 randomProperty = 0;
@@ -41,27 +42,22 @@ bool LootRollAction::Execute(Event /*event*/)
 
         std::string itemUsageParam;
         if (randomProperty != 0)
-        {
             itemUsageParam = std::to_string(itemId) + "," + std::to_string(randomProperty);
-        }
         else
-        {
             itemUsageParam = std::to_string(itemId);
-        }
+
         ItemUsage usage = AI_VALUE2(ItemUsage, "item usage", itemUsageParam);
 
         // Armor Tokens are classed as MISC JUNK (Class 15, Subclass 0), luckily no other items I found have class bits and epic quality.
         if (proto->Class == ITEM_CLASS_MISC && proto->SubClass == ITEM_SUBCLASS_JUNK && proto->Quality == ITEM_QUALITY_EPIC)
         {
             if (CanBotUseToken(proto, bot))
-            {
                 vote = NEED; // Eligible for "Need"
-            }
             else
-            {
                 vote = GREED; // Not eligible, so "Greed"
-            }
         }
+        else if (usage == ITEM_USAGE_DISENCHANT)
+            vote = sPlayerbotAIConfig.LootRollDisenchant ? DISENCHANT : GREED;
         else
         {
             switch (proto->Class)
@@ -69,40 +65,34 @@ bool LootRollAction::Execute(Event /*event*/)
                 case ITEM_CLASS_WEAPON:
                 case ITEM_CLASS_ARMOR:
                     if (usage == ITEM_USAGE_EQUIP || usage == ITEM_USAGE_REPLACE || usage == ITEM_USAGE_BAD_EQUIP)
-                    {
                         vote = NEED;
-                    }
                     else if (usage != ITEM_USAGE_NONE)
-                    {
                         vote = GREED;
-                    }
+                    break;
+                case ITEM_CLASS_RECIPE:
+                    if (!sPlayerbotAIConfig.LootRollRecipe)
+                        vote = PASS;
+                    else if (usage == ITEM_USAGE_SKILL)
+                        vote = NEED;  // Bot can learn this recipe
+                    else if (proto->Bonding != BIND_WHEN_PICKED_UP)
+                        vote = GREED;  // BoE recipe bot can't learn - GREED for AH/trade
                     break;
                 default:
                     if (StoreLootAction::IsLootAllowed(itemId, botAI))
-                        vote = CalculateRollVote(proto); // Ensure correct Need/Greed behavior
+                        vote = CalculateRollVote(proto, usage);
                     break;
             }
         }
-        if (sPlayerbotAIConfig.lootRollLevel == 0)
+        if (vote == NEED)
         {
+            if (sPlayerbotAIConfig.LootNeedRollLevel == 0 || RollUniqueCheck(proto, bot))
+                vote = PASS;
+            else if (sPlayerbotAIConfig.LootNeedRollLevel == 1)
+                vote = GREED;
+        }
+        else if (vote == GREED && !sPlayerbotAIConfig.LootGreedRollLevel)
             vote = PASS;
-        }
-        else if (sPlayerbotAIConfig.lootRollLevel == 1)
-        {
-            // Level 1 = "greed" mode: bots greed on useful items but never need
-            // Only downgrade NEED to GREED, preserve GREED votes as-is
-            if (vote == NEED)
-            {
-                if (RollUniqueCheck(proto, bot))
-                    {
-                        vote = PASS;
-                    }
-                else
-                    {
-                        vote = GREED;
-                    }
-            }
-        }
+
         switch (group->GetLootMethod())
         {
             case MASTER_LOOT:
@@ -113,18 +103,20 @@ bool LootRollAction::Execute(Event /*event*/)
                 group->CountRollVote(bot->GetGUID(), guid, vote);
                 break;
         }
-        // One item at a time
-        return true;
+        voted = true;
     }
 
-    return false;
+    return voted;
 }
 
-RollVote LootRollAction::CalculateRollVote(ItemTemplate const* proto)
+RollVote LootRollAction::CalculateRollVote(ItemTemplate const* proto, ItemUsage usage)
 {
-    std::ostringstream out;
-    out << proto->ItemId;
-    ItemUsage usage = AI_VALUE2(ItemUsage, "item usage", out.str());
+    if (usage == ITEM_USAGE_NONE)
+    {
+        std::ostringstream out;
+        out << proto->ItemId;
+        usage = AI_VALUE2(ItemUsage, "item usage", out.str());
+    }
 
     RollVote needVote = PASS;
     switch (usage)
@@ -137,10 +129,12 @@ RollVote LootRollAction::CalculateRollVote(ItemTemplate const* proto)
             break;
         case ITEM_USAGE_SKILL:
         case ITEM_USAGE_USE:
-        case ITEM_USAGE_DISENCHANT:
         case ITEM_USAGE_AH:
         case ITEM_USAGE_VENDOR:
             needVote = GREED;
+            break;
+        case ITEM_USAGE_DISENCHANT:
+            needVote = sPlayerbotAIConfig.LootRollDisenchant ? DISENCHANT : GREED;
             break;
         default:
             break;
@@ -149,7 +143,7 @@ RollVote LootRollAction::CalculateRollVote(ItemTemplate const* proto)
     return StoreLootAction::IsLootAllowed(proto->ItemId, GET_PLAYERBOT_AI(bot)) ? needVote : PASS;
 }
 
-bool MasterLootRollAction::isUseful() { return !botAI->HasActivePlayerMaster(); }
+bool MasterLootRollAction::isUseful() { return !IsRealPlayer(botAI->GetMaster()); }
 
 bool MasterLootRollAction::Execute(Event event)
 {
@@ -195,9 +189,7 @@ bool CanBotUseToken(ItemTemplate const* proto, Player* bot)
 
     // Check if the bot's class is allowed to use the token
     if (proto->AllowableClass & botClassMask)
-    {
         return true; // Bot's class is eligible to use this token
-    }
 
     return false; // Bot's class cannot use this token
 }
@@ -213,13 +205,9 @@ bool RollUniqueCheck(ItemTemplate const* proto, Player* bot)
     // Determine if the unique item is already equipped
     bool isEquipped = (totalItemCount > bagItemCount);
     if (isEquipped && proto->HasFlag(ITEM_FLAG_UNIQUE_EQUIPPABLE))
-    {
         return true;  // Unique Item is already equipped
-    }
     else if (proto->HasFlag(ITEM_FLAG_UNIQUE_EQUIPPABLE) && (bagItemCount > 1))
-    {
         return true; // Unique item already in bag, don't roll for it
-    }
     return false; // Item is not equipped or in bags, roll for it
 }
 
@@ -229,7 +217,7 @@ bool RollAction::Execute(Event event)
 
     if (link.empty())
     {
-        bot->DoRandomRoll(0,100);
+        bot->DoRandomRoll(1, 100);
         return false;
     }
     ItemIds itemIds = chat->parseItems(link);
@@ -238,9 +226,8 @@ bool RollAction::Execute(Event event)
     uint32 itemId = *itemIds.begin();
     ItemTemplate const* proto = sObjectMgr->GetItemTemplate(itemId);
     if (!proto)
-    {
         return false;
-    }
+
     std::string itemUsageParam;
     itemUsageParam = std::to_string(itemId);
 
@@ -250,9 +237,7 @@ bool RollAction::Execute(Event event)
         case ITEM_CLASS_WEAPON:
         case ITEM_CLASS_ARMOR:
         if (usage == ITEM_USAGE_EQUIP || usage == ITEM_USAGE_REPLACE || usage == ITEM_USAGE_BAD_EQUIP)
-        {
-            bot->DoRandomRoll(0,100);
-        }
+            bot->DoRandomRoll(1, 100);
     }
     return true;
 }

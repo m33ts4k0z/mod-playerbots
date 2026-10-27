@@ -1,10 +1,11 @@
 /*
- * Copyright (C) 2016+ AzerothCore <www.azerothcore.org>, released under GNU AGPL v3 license, you may redistribute it
- * and/or modify it under version 3 of the License, or (at your option), any later version.
+ * This file is part of the mod-playerbots module for AzerothCore. See AUTHORS file for Copyright
+ * information; released under GNU GPL v2 license, redistribute/modify under version 2 of the License,
+ * or (at your option) any later version.
  */
 
-#ifndef _PLAYERBOT_POSSIBLETARGETSVALUE_H
-#define _PLAYERBOT_POSSIBLETARGETSVALUE_H
+#ifndef PLAYERBOTS_POSSIBLETARGETSVALUE_H
+#define PLAYERBOTS_POSSIBLETARGETSVALUE_H
 
 #include "NearestUnitsValue.h"
 #include "PlayerbotAIConfig.h"
@@ -15,7 +16,7 @@ class PossibleTargetsValue : public NearestUnitsValue
 {
 public:
     PossibleTargetsValue(PlayerbotAI* botAI, std::string const name = "possible targets",
-                         float range = sPlayerbotAIConfig.sightDistance, bool ignoreLos = false)
+                         float range = sPlayerbotAIConfig.SightDistance, bool ignoreLos = false)
         : NearestUnitsValue(botAI, name, range, ignoreLos)
     {
     }
@@ -28,7 +29,7 @@ protected:
 class AllTargetsValue : public PossibleTargetsValue
 {
 public:
-    AllTargetsValue(PlayerbotAI* botAI, float range = sPlayerbotAIConfig.sightDistance)
+    AllTargetsValue(PlayerbotAI* botAI, float range = sPlayerbotAIConfig.SightDistance)
         : PossibleTargetsValue(botAI, "all targets", range, true)
     {
     }
@@ -39,7 +40,7 @@ class PossibleTriggersValue : public NearestUnitsValue
 public:
     PossibleTriggersValue(PlayerbotAI* botAI, std::string const name = "possible triggers", float range = 15.0f,
                           bool ignoreLos = true)
-        : NearestUnitsValue(botAI, name, range, ignoreLos, 1 * 1000)
+        : NearestUnitsValue(botAI, name, range, ignoreLos, 1 * IN_MILLISECONDS)
     {
     }
 

@@ -1,10 +1,10 @@
 /*
- * Copyright (C) 2016+ AzerothCore <www.azerothcore.org>, released under GNU AGPL v3 license, you may redistribute it
- * and/or modify it under version 3 of the License, or (at your option), any later version.
+ * This file is part of the mod-playerbots module for AzerothCore. See AUTHORS file for Copyright
+ * information; released under GNU GPL v2 license, redistribute/modify under version 2 of the License,
+ * or (at your option) any later version.
  */
 
 #include "Strategy.h"
-
 #include "Playerbots.h"
 
 class ActionNodeFactoryInternal : public NamedObjectFactory<ActionNode>
@@ -22,7 +22,6 @@ public:
         creators["drink"] = &drink;
         creators["mana potion"] = &mana_potion;
         creators["healing potion"] = &healing_potion;
-        creators["flee"] = &flee;
     }
 
 private:
@@ -122,16 +121,6 @@ private:
             "healing potion",
             /*P*/ {},
             /*A*/ { NextAction("food") },
-            /*C*/ {}
-        );
-    }
-
-    static ActionNode* flee([[maybe_unused]] PlayerbotAI* botAI)
-    {
-        return new ActionNode(
-            "flee",
-            /*P*/ {},
-            /*A*/ {},
             /*C*/ {}
         );
     }

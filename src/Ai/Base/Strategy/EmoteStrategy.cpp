@@ -1,15 +1,15 @@
 /*
- * Copyright (C) 2016+ AzerothCore <www.azerothcore.org>, released under GNU AGPL v3 license, you may redistribute it
- * and/or modify it under version 3 of the License, or (at your option), any later version.
+ * This file is part of the mod-playerbots module for AzerothCore. See AUTHORS file for Copyright
+ * information; released under GNU GPL v2 license, redistribute/modify under version 2 of the License,
+ * or (at your option) any later version.
  */
 
 #include "EmoteStrategy.h"
-
 #include "Playerbots.h"
 
 void EmoteStrategy::InitTriggers(std::vector<TriggerNode*>& triggers)
 {
-    if (sPlayerbotAIConfig.randomBotEmote)
+    if (sPlayerbotAIConfig.RandomBotEmote)
     {
         triggers.push_back(new TriggerNode("often", { NextAction("talk", 1.0f) }));
         triggers.push_back(new TriggerNode("seldom", { NextAction("emote", 1.0f) }));
@@ -19,7 +19,7 @@ void EmoteStrategy::InitTriggers(std::vector<TriggerNode*>& triggers)
             new TriggerNode("receive emote", { NextAction("emote", 10.0f) }));
     }
 
-    if (sPlayerbotAIConfig.randomBotTalk)
+    if (sPlayerbotAIConfig.RandomBotTalk)
     {
         triggers.push_back(new TriggerNode(
             "often",
@@ -27,7 +27,7 @@ void EmoteStrategy::InitTriggers(std::vector<TriggerNode*>& triggers)
                               NextAction("suggest trade", 3.0f) }));
     }
 
-    if (sPlayerbotAIConfig.enableGreet)
+    if (sPlayerbotAIConfig.EnableGreet)
         triggers.push_back(
             new TriggerNode("new player nearby", { NextAction("greet", 1.0f) }));
 

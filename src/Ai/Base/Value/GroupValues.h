@@ -1,7 +1,11 @@
 /*
- * Copyright (C) 2016+ AzerothCore <www.azerothcore.org>, released under GNU AGPL v3 license, you may redistribute it
- * and/or modify it under version 3 of the License, or (at your option), any later version.
+ * This file is part of the mod-playerbots module for AzerothCore. See AUTHORS file for Copyright
+ * information; released under GNU GPL v2 license, redistribute/modify under version 2 of the License,
+ * or (at your option) any later version.
  */
+
+#ifndef PLAYERBOTS_GROUPVALUES_H
+#define PLAYERBOTS_GROUPVALUES_H
 
 #include "NamedObjectContext.h"
 #include "Value.h"
@@ -11,7 +15,8 @@ class PlayerbotAI;
 class GroupMembersValue : public ObjectGuidListCalculatedValue
 {
 public:
-    GroupMembersValue(PlayerbotAI* botAI) : ObjectGuidListCalculatedValue(botAI, "group members", 2 * 1000) {}
+    GroupMembersValue(PlayerbotAI* botAI)
+        : ObjectGuidListCalculatedValue(botAI, "group members", 2 * IN_MILLISECONDS) {}
 
     GuidVector Calculate() override;
 };
@@ -67,7 +72,9 @@ public:
 class GroupReadyValue : public BoolCalculatedValue, public Qualified
 {
 public:
-    GroupReadyValue(PlayerbotAI* botAI) : BoolCalculatedValue(botAI, "group ready", 2 * 2000) {}
+    GroupReadyValue(PlayerbotAI* botAI) : BoolCalculatedValue(botAI, "group ready", 4 * IN_MILLISECONDS) {}
 
     bool Calculate() override;
 };
+
+#endif

@@ -1,10 +1,11 @@
 /*
- * Copyright (C) 2016+ AzerothCore <www.azerothcore.org>, released under GNU AGPL v3 license, you may redistribute it
- * and/or modify it under version 3 of the License, or (at your option), any later version.
+ * This file is part of the mod-playerbots module for AzerothCore. See AUTHORS file for Copyright
+ * information; released under GNU GPL v2 license, redistribute/modify under version 2 of the License,
+ * or (at your option) any later version.
  */
 
-#ifndef _PLAYERBOT_QUESTACTION_H
-#define _PLAYERBOT_QUESTACTION_H
+#ifndef PLAYERBOTS_QUESTACTION_H
+#define PLAYERBOTS_QUESTACTION_H
 
 #include "Action.h"
 #include "Object.h"
@@ -34,42 +35,42 @@ protected:
 class QuestUpdateCompleteAction : public Action
 {
 public:
-    QuestUpdateCompleteAction(PlayerbotAI* ai) : Action(ai, "quest update complete") {}
+    QuestUpdateCompleteAction(PlayerbotAI* botAI) : Action(botAI, "quest update complete") {}
     bool Execute(Event event) override;
 };
 
 class QuestUpdateAddKillAction : public Action
 {
 public:
-    QuestUpdateAddKillAction(PlayerbotAI* ai) : Action(ai, "quest update add kill") {}
+    QuestUpdateAddKillAction(PlayerbotAI* botAI) : Action(botAI, "quest update add kill") {}
     bool Execute(Event event) override;
 };
 
 class QuestUpdateAddItemAction : public Action
 {
 public:
-    QuestUpdateAddItemAction(PlayerbotAI* ai) : Action(ai, "quest update add item") {}
+    QuestUpdateAddItemAction(PlayerbotAI* botAI) : Action(botAI, "quest update add item") {}
     bool Execute(Event event) override;
 };
 
 class QuestUpdateFailedAction : public Action
 {
 public:
-    QuestUpdateFailedAction(PlayerbotAI* ai) : Action(ai, "quest update failed") {}
+    QuestUpdateFailedAction(PlayerbotAI* botAI) : Action(botAI, "quest update failed") {}
     bool Execute(Event event) override;
 };
 
 class QuestUpdateFailedTimerAction : public Action
 {
 public:
-    QuestUpdateFailedTimerAction(PlayerbotAI* ai) : Action(ai, "quest update failed timer") {}
+    QuestUpdateFailedTimerAction(PlayerbotAI* botAI) : Action(botAI, "quest update failed timer") {}
     bool Execute(Event event) override;
 };
 
 class QuestItemPushResultAction : public Action
 {
 public:
-    QuestItemPushResultAction(PlayerbotAI* ai) : Action(ai, "quest item push result") {}
+    QuestItemPushResultAction(PlayerbotAI* botAI) : Action(botAI, "quest item push result") {}
     bool Execute(Event event) override;
 };
 

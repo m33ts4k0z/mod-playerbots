@@ -1,13 +1,17 @@
 /*
- * Copyright (C) 2016+ AzerothCore <www.azerothcore.org>, released under GNU AGPL v3 license, you may redistribute it
- * and/or modify it under version 3 of the License, or (at your option), any later version.
+ * This file is part of the mod-playerbots module for AzerothCore. See AUTHORS file for Copyright
+ * information; released under GNU GPL v2 license, redistribute/modify under version 2 of the License,
+ * or (at your option) any later version.
  */
 
-#ifndef _PLAYERBOT_STATSCOLLECTOR_H
-#define _PLAYERBOT_STATSCOLLECTOR_H
+#ifndef PLAYERBOTS_STATSCOLLECTOR_H
+#define PLAYERBOTS_STATSCOLLECTOR_H
 
 #include "ItemTemplate.h"
 #include "SpellInfo.h"
+
+struct ScalingStatDistributionEntry;
+struct ScalingStatValuesEntry;
 
 enum StatsType : uint8
 {
@@ -61,7 +65,7 @@ enum CollectorType : uint8
 class StatsCollector
 {
 public:
-    StatsCollector(CollectorType type, int32 cls = -1);
+    StatsCollector(CollectorType type, int32 cls = -1, int32 lvl = -1);
     StatsCollector(StatsCollector& stats) = default;
     void Reset();
     void CollectItemStats(ItemTemplate const* proto);
@@ -74,17 +78,21 @@ public:
     float stats[STATS_TYPE_MAX];
 
 private:
+    void CollectWeaponDamageStats(ItemTemplate const* proto, ScalingStatValuesEntry const* ssv);
+    void CollectItemStatValues(ItemTemplate const* proto, ScalingStatDistributionEntry const* ssd,
+                               ScalingStatValuesEntry const* ssv);
     void CollectByItemStatType(uint32 itemStatType, int32 val);
     bool SpecialSpellFilter(uint32 spellId);
     bool SpecialEnchantFilter(uint32 enchantSpellId);
 
-    void HandleApplyAura(const SpellEffectInfo& effectInfo, float multiplier, bool canNextTrigger,
+    void HandleApplyAura(SpellEffectInfo const& effectInfo, float multiplier, bool canNextTrigger,
                          Milliseconds triggerCooldown);
-    float AverageValue(const SpellEffectInfo& effectInfo);
+    float AverageValue(SpellEffectInfo const& effectInfo);
 
 private:
     CollectorType type_;
     uint32 cls_;
+    int32 lvl_;
 };
 
 #endif

@@ -1,16 +1,20 @@
 /*
- * Copyright (C) 2016+ AzerothCore <www.azerothcore.org>, released under GNU AGPL v3 license, you may redistribute it
- * and/or modify it under version 3 of the License, or (at your option), any later version.
+ * This file is part of the mod-playerbots module for AzerothCore. See AUTHORS file for Copyright
+ * information; released under GNU GPL v2 license, redistribute/modify under version 2 of the License,
+ * or (at your option) any later version.
  */
 
-#ifndef _PLAYERBOT_RANDOMPLAYERBOTMGR_H
-#define _PLAYERBOT_RANDOMPLAYERBOTMGR_H
+#ifndef PLAYERBOTS_RANDOMPLAYERBOTMGR_H
+#define PLAYERBOTS_RANDOMPLAYERBOTMGR_H
 
+#include "GameTime.h"
 #include "NewRpgInfo.h"
 #include "ObjectGuid.h"
-#include "PlayerbotMgr.h"
-#include "GameTime.h"
 #include "PlayerbotCommandServer.h"
+#include "PlayerbotMgr.h"
+#include <mutex>
+#include <set>
+#include <unordered_set>
 
 struct BattlegroundInfo
 {
@@ -120,6 +124,7 @@ public:
     Player* GetRandomPlayer();
     std::vector<Player*> GetPlayers() { return players; };
     PlayerBotMap GetAllBots() { return playerBots; };
+    void InitArenaTeams();
     void PrintStats();
     double GetBuyMultiplier(Player* bot);
     double GetSellMultiplier(Player* bot);
@@ -140,6 +145,7 @@ public:
     std::string GetData(uint32 bot, std::string const& type);
     void SetValue(uint32 bot, std::string const& type, uint32 value, std::string const& data = "");
     void SetValue(Player* bot, std::string const& type, uint32 value, std::string const& data = "");
+    bool IsSpecPvp(uint32 bot, uint8 cls);
     void Remove(Player* bot);
     ObjectGuid GetBattleMasterGUID(Player* bot, BattlegroundTypeId bgTypeId);
     CreatureData const* GetCreatureDataByEntry(uint32 entry);
@@ -164,39 +170,23 @@ public:
     static uint8 GetTeamClassIdx(bool isAlliance, uint8 claz) { return isAlliance * 20 + claz; }
 
     void PrepareAddclassCache();
-    void PrepareZone2LevelBracket();
-    void PrepareTeleportCache();
     void Init();
     std::map<uint8, std::unordered_set<ObjectGuid>> addclassCache;
-    std::map<uint8, std::vector<WorldLocation>> locsPerLevelCache;
-    std::map<uint8, std::vector<WorldLocation>> allianceStarterPerLevelCache;
-    std::map<uint8, std::vector<WorldLocation>> hordeStarterPerLevelCache;
-
-    struct LevelBracket {
-        uint32 low;
-        uint32 high;
-        bool InsideBracket(uint32 val) { return val >= low && val <= high; }
-    };
-    std::map<uint32, LevelBracket> zone2LevelBracket;
-    struct BankerLocation {
-        WorldLocation loc;
-        uint32 entry;
-    };
-    std::map<uint8, std::vector<BankerLocation>> bankerLocsPerLevelCache;
 
     // Account type management
     void AssignAccountTypes();
     bool IsAccountType(uint32 accountId, uint8 accountType);
+    bool IsAddClassAccount(uint32 accountId) const;
 
 protected:
     void OnBotLoginInternal(Player* const bot) override;
 
 private:
-    RandomPlayerbotMgr() : PlayerbotHolder(), processTicks(0)
+    RandomPlayerbotMgr() : PlayerbotHolder()
     {
-        this->playersLevel = sPlayerbotAIConfig.randombotStartingLevel;
+        this->playersLevel = sPlayerbotAIConfig.RandomBotStartingLevel;
 
-        if (sPlayerbotAIConfig.enabled || sPlayerbotAIConfig.randomBotAutologin)
+        if (sPlayerbotAIConfig.Enabled || sPlayerbotAIConfig.RandomBotAutologin)
         {
             PlayerbotCommandServer::instance().Start();
         }
@@ -223,8 +213,8 @@ private:
 
     ~RandomPlayerbotMgr() = default;
 
-    RandomPlayerbotMgr(const RandomPlayerbotMgr&) = delete;
-    RandomPlayerbotMgr& operator=(const RandomPlayerbotMgr&) = delete;
+    RandomPlayerbotMgr(RandomPlayerbotMgr const&) = delete;
+    RandomPlayerbotMgr& operator=(RandomPlayerbotMgr const&) = delete;
 
     RandomPlayerbotMgr(RandomPlayerbotMgr&&) = delete;
     RandomPlayerbotMgr& operator=(RandomPlayerbotMgr&&) = delete;
@@ -254,17 +244,21 @@ private:
     void RandomTeleport(Player* bot);
     void RandomTeleport(Player* bot, std::vector<WorldLocation>& locs, bool hearth = false);
     uint32 GetZoneLevel(uint16 mapId, float teleX, float teleY, float teleZ);
+    void UpdatePlayerZones();
+    std::vector<WorldLocation> GetPlayerZoneTeleportLocations(std::vector<WorldLocation> const& locs, Player* bot);
     typedef void (RandomPlayerbotMgr::*ConsoleCommandHandler)(Player*);
     std::vector<Player*> players;
-    uint32 processTicks;
 
     // std::map<uint32, std::vector<WorldLocation>> rpgLocsCache;
     std::map<uint32, std::map<uint32, std::vector<WorldLocation>>> rpgLocsCacheLevel;
     std::map<TeamId, std::map<BattlegroundTypeId, std::vector<uint32>>> BattleMastersCache;
+    std::unordered_map<uint32, ObjectGuid::LowType> BattleMasterSpawnIds;
     std::unordered_map<uint32, BotEventCache> eventCache;
-    std::list<uint32> currentBots;
-    uint32 bgBotsCount;
+    std::unordered_set<uint32> currentBots;
     uint32 playersLevel;
+    // Written on the world thread, read from map threads.
+    std::set<std::pair<uint32, uint32>> _playerZones;
+    std::mutex _playerZonesLock;
 
     // Account lists
     std::vector<uint32> rndBotTypeAccounts;             // Accounts marked as RNDbot (type 1)

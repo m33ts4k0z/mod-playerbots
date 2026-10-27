@@ -1,10 +1,11 @@
 /*
- * Copyright (C) 2016+ AzerothCore <www.azerothcore.org>, released under GNU AGPL v3 license, you may redistribute it
- * and/or modify it under version 3 of the License, or (at your option), any later version.
+ * This file is part of the mod-playerbots module for AzerothCore. See AUTHORS file for Copyright
+ * information; released under GNU GPL v2 license, redistribute/modify under version 2 of the License,
+ * or (at your option) any later version.
  */
 
-#ifndef _PLAYERBOT_BOSSAURATRIGGERS_H
-#define _PLAYERBOT_BOSSAURATRIGGERS_H
+#ifndef PLAYERBOTS_BOSSAURATRIGGERS_H
+#define PLAYERBOTS_BOSSAURATRIGGERS_H
 
 #include "GenericTriggers.h"
 
@@ -36,8 +37,8 @@ enum BossAuraIDs
 class BossFireResistanceTrigger : public Trigger
 {
 public:
-    BossFireResistanceTrigger(PlayerbotAI* ai, std::string const bossName)
-        : Trigger(ai, bossName + " fire resistance trigger"), bossName(bossName)
+    BossFireResistanceTrigger(PlayerbotAI* botAI, std::string const bossName)
+        : Trigger(botAI, bossName + " fire resistance trigger"), bossName(bossName)
     {
     }
     bool IsActive() override;
@@ -49,8 +50,8 @@ private:
 class BossFrostResistanceTrigger : public Trigger
 {
 public:
-    BossFrostResistanceTrigger(PlayerbotAI* ai, std::string const bossName)
-        : Trigger(ai, bossName + " frost resistance trigger"), bossName(bossName)
+    BossFrostResistanceTrigger(PlayerbotAI* botAI, std::string const bossName)
+        : Trigger(botAI, bossName + " frost resistance trigger"), bossName(bossName)
     {
     }
     bool IsActive() override;
@@ -62,8 +63,8 @@ private:
 class BossNatureResistanceTrigger : public Trigger
 {
 public:
-    BossNatureResistanceTrigger(PlayerbotAI* ai, std::string const bossName)
-        : Trigger(ai, " nature resistance trigger"), bossName(bossName)
+    BossNatureResistanceTrigger(PlayerbotAI* botAI, std::string const bossName)
+        : Trigger(botAI, " nature resistance trigger"), bossName(bossName)
     {
     }
     bool IsActive() override;
@@ -75,8 +76,8 @@ private:
 class BossShadowResistanceTrigger : public Trigger
 {
 public:
-    BossShadowResistanceTrigger(PlayerbotAI* ai, std::string const bossName)
-        : Trigger(ai, " shadow resistance trigger"), bossName(bossName)
+    BossShadowResistanceTrigger(PlayerbotAI* botAI, std::string const bossName)
+        : Trigger(botAI, " shadow resistance trigger"), bossName(bossName)
     {
     }
     bool IsActive() override;

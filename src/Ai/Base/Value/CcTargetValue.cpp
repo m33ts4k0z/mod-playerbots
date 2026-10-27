@@ -1,10 +1,10 @@
 /*
- * Copyright (C) 2016+ AzerothCore <www.azerothcore.org>, released under GNU AGPL v3 license, you may redistribute it
- * and/or modify it under version 3 of the License, or (at your option), any later version.
+ * This file is part of the mod-playerbots module for AzerothCore. See AUTHORS file for Copyright
+ * information; released under GNU GPL v2 license, redistribute/modify under version 2 of the License,
+ * or (at your option) any later version.
  */
 
 #include "CcTargetValue.h"
-
 #include "Action.h"
 #include "AiObjectContext.h"
 #include "Group.h"
@@ -20,7 +20,7 @@ public:
     }
 
 public:
-    void CheckAttacker(Unit* creature, ThreatMgr* threatMgr) override
+    void CheckAttacker(Unit* creature, ThreatManager* /*threatMgr*/) override
     {
         Player* bot = botAI->GetBot();
         if (!botAI->CanCastSpell(spell, creature))
@@ -36,7 +36,7 @@ public:
             return;
 
         uint8 health = static_cast<uint8>(creature->GetHealthPct());
-        if (health < sPlayerbotAIConfig.mediumHealth)
+        if (health < sPlayerbotAIConfig.MediumHealth)
             return;
 
         float minDistance = botAI->GetRange("spell");
@@ -49,7 +49,7 @@ public:
             WorldLocation aoe = *botAI->GetAiObjectContext()->GetValue<WorldLocation>("aoe position");
             if (ServerFacade::instance().IsDistanceLessOrEqualThan(
                     ServerFacade::instance().GetDistance2d(creature, aoe.GetPositionX(), aoe.GetPositionY()),
-                    sPlayerbotAIConfig.aoeRadius))
+                    sPlayerbotAIConfig.AoeRadius))
                 return;
         }
 
@@ -69,7 +69,7 @@ public:
             if (!member || !member->IsAlive() || member == bot)
                 continue;
 
-            if (!botAI->IsTank(member))
+            if (!PlayerbotAI::IsTank(member))
                 continue;
 
             float distance = ServerFacade::instance().GetDistance2d(member, creature);

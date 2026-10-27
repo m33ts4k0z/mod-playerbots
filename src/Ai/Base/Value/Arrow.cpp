@@ -1,13 +1,13 @@
 /*
- * Copyright (C) 2016+ AzerothCore <www.azerothcore.org>, released under GNU AGPL v3 license, you may redistribute it
- * and/or modify it under version 3 of the License, or (at your option), any later version.
+ * This file is part of the mod-playerbots module for AzerothCore. See AUTHORS file for Copyright
+ * information; released under GNU GPL v2 license, redistribute/modify under version 2 of the License,
+ * or (at your option) any later version.
  */
 
 #include "Arrow.h"
-
+#include "Group.h"
 #include "Map.h"
 #include "PlayerbotAI.h"
-#include "Group.h"
 
 WorldLocation ArrowFormation::GetLocationInternal()
 {
@@ -19,7 +19,8 @@ WorldLocation ArrowFormation::GetLocationInternal()
     uint32 tankLines = 1 + tanks.Size() / 6;
     uint32 meleeLines = 1 + melee.Size() / 6;
     uint32 rangedLines = 1 + ranged.Size() / 6;
-    uint32 healerLines = 1 + healers.Size() / 6;
+    //@TODO Implement Healer Lines
+    //uint32 healerLines = 1 + healers.Size() / 6;
     float offset = 0.f;
 
     Player* master = botAI->GetMaster();
@@ -32,15 +33,15 @@ WorldLocation ArrowFormation::GetLocationInternal()
     tanks.PlaceUnits(&placer);
     tanks.Move(-cos(orientation) * offset, -sin(orientation) * offset);
 
-    offset += tankLines * sPlayerbotAIConfig.followDistance + sPlayerbotAIConfig.tooCloseDistance / 2;
+    offset += tankLines * sPlayerbotAIConfig.FollowDistance + sPlayerbotAIConfig.TooCloseDistance / 2;
     melee.PlaceUnits(&placer);
     melee.Move(-cos(orientation) * offset, -sin(orientation) * offset);
 
-    offset += meleeLines * sPlayerbotAIConfig.followDistance + sPlayerbotAIConfig.tooCloseDistance / 2;
+    offset += meleeLines * sPlayerbotAIConfig.FollowDistance + sPlayerbotAIConfig.TooCloseDistance / 2;
     ranged.PlaceUnits(&placer);
     ranged.Move(-cos(orientation) * offset, -sin(orientation) * offset);
 
-    offset += rangedLines * sPlayerbotAIConfig.followDistance;
+    offset += rangedLines * sPlayerbotAIConfig.FollowDistance;
     healers.PlaceUnits(&placer);
     healers.Move(-cos(orientation) * offset, -sin(orientation) * offset);
 
@@ -74,11 +75,11 @@ void ArrowFormation::Build()
 
 FormationSlot* ArrowFormation::FindSlot(Player* member)
 {
-    if (botAI->IsTank(member))
+    if (PlayerbotAI::IsTank(member))
         return &tanks;
-    else if (botAI->IsHeal(member))
+    else if (PlayerbotAI::IsHeal(member))
         return &healers;
-    else if (botAI->IsRanged(member))
+    else if (PlayerbotAI::IsRanged(member))
         return &ranged;
     else
         return &melee;
@@ -147,11 +148,11 @@ UnitPosition MultiLineUnitPlacer::Place(FormationUnit* unit, uint32 index, uint3
     return placer.Place(unit, indexInLine, lineSize);
 }
 
-UnitPosition SingleLineUnitPlacer::Place(FormationUnit* unit, uint32 index, uint32 count)
+UnitPosition SingleLineUnitPlacer::Place(FormationUnit* /*unit*/, uint32 index, uint32 count)
 {
     float angle = orientation - M_PI / 2.0f;
-    float x = cos(angle) * sPlayerbotAIConfig.followDistance * ((float)index - (float)count / 2);
-    float y = sin(angle) * sPlayerbotAIConfig.followDistance * ((float)index - (float)count / 2);
+    float x = cos(angle) * sPlayerbotAIConfig.FollowDistance * ((float)index - (float)count / 2);
+    float y = sin(angle) * sPlayerbotAIConfig.FollowDistance * ((float)index - (float)count / 2);
     return UnitPosition(x, y);
 }
 

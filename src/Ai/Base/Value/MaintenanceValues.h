@@ -1,10 +1,11 @@
 /*
- * Copyright (C) 2016+ AzerothCore <www.azerothcore.org>, released under GNU AGPL v3 license, you may redistribute it
- * and/or modify it under version 3 of the License, or (at your option), any later version.
+ * This file is part of the mod-playerbots module for AzerothCore. See AUTHORS file for Copyright
+ * information; released under GNU GPL v2 license, redistribute/modify under version 2 of the License,
+ * or (at your option) any later version.
  */
 
-#ifndef _PLAYERBOT_MAINTANCEVALUE_H
-#define _PLAYERBOT_MAINTANCEVALUE_H
+#ifndef PLAYERBOTS_MAINTENANCEVALUES_H
+#define PLAYERBOTS_MAINTENANCEVALUES_H
 
 #include "Value.h"
 
@@ -13,7 +14,7 @@ class PlayerbotAI;
 class CanMoveAroundValue : public BoolCalculatedValue
 {
 public:
-    CanMoveAroundValue(PlayerbotAI* botAI) : BoolCalculatedValue(botAI, "can move around", 2 * 2000) {}
+    CanMoveAroundValue(PlayerbotAI* botAI) : BoolCalculatedValue(botAI, "can move around", 4 * IN_MILLISECONDS) {}
 
     bool Calculate() override;
 };
@@ -21,7 +22,7 @@ public:
 class ShouldHomeBindValue : public BoolCalculatedValue
 {
 public:
-    ShouldHomeBindValue(PlayerbotAI* botAI) : BoolCalculatedValue(botAI, "should home bind", 2 * 2000) {}
+    ShouldHomeBindValue(PlayerbotAI* botAI) : BoolCalculatedValue(botAI, "should home bind", 4 * IN_MILLISECONDS) {}
 
     bool Calculate() override;
 };
@@ -29,7 +30,7 @@ public:
 class ShouldRepairValue : public BoolCalculatedValue
 {
 public:
-    ShouldRepairValue(PlayerbotAI* botAI) : BoolCalculatedValue(botAI, "should repair", 2 * 2000) {}
+    ShouldRepairValue(PlayerbotAI* botAI) : BoolCalculatedValue(botAI, "should repair", 4 * IN_MILLISECONDS) {}
 
     bool Calculate() override;
 };
@@ -37,7 +38,7 @@ public:
 class CanRepairValue : public BoolCalculatedValue
 {
 public:
-    CanRepairValue(PlayerbotAI* botAI) : BoolCalculatedValue(botAI, "can repair", 2 * 2000) {}
+    CanRepairValue(PlayerbotAI* botAI) : BoolCalculatedValue(botAI, "can repair", 4 * IN_MILLISECONDS) {}
 
     bool Calculate() override;
 };
@@ -45,7 +46,7 @@ public:
 class ShouldSellValue : public BoolCalculatedValue
 {
 public:
-    ShouldSellValue(PlayerbotAI* botAI) : BoolCalculatedValue(botAI, "should sell", 2 * 2000) {}
+    ShouldSellValue(PlayerbotAI* botAI) : BoolCalculatedValue(botAI, "should sell", 4 * IN_MILLISECONDS) {}
 
     bool Calculate() override;
 };
@@ -53,7 +54,7 @@ public:
 class CanSellValue : public BoolCalculatedValue
 {
 public:
-    CanSellValue(PlayerbotAI* botAI) : BoolCalculatedValue(botAI, "can sell", 2 * 2000) {}
+    CanSellValue(PlayerbotAI* botAI) : BoolCalculatedValue(botAI, "can sell", 4 * IN_MILLISECONDS) {}
 
     bool Calculate() override;
 };
@@ -61,7 +62,7 @@ public:
 class CanTrainValue : public BoolCalculatedValue
 {
 public:
-    CanTrainValue(PlayerbotAI* botAI) : BoolCalculatedValue(botAI, "can train", 2 * 2000) {}
+    CanTrainValue(PlayerbotAI* botAI) : BoolCalculatedValue(botAI, "can train", 4 * IN_MILLISECONDS) {}
 
     bool Calculate() override;
 };
@@ -69,7 +70,7 @@ public:
 class CanFightEqualValue : public BoolCalculatedValue
 {
 public:
-    CanFightEqualValue(PlayerbotAI* botAI) : BoolCalculatedValue(botAI, "can fight equal", 2 * 2000) {}
+    CanFightEqualValue(PlayerbotAI* botAI) : BoolCalculatedValue(botAI, "can fight equal", 4 * IN_MILLISECONDS) {}
 
     bool Calculate() override;
 };

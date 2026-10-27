@@ -1,10 +1,11 @@
 /*
- * Copyright (C) 2016+ AzerothCore <www.azerothcore.org>, released under GNU AGPL v3 license, you may redistribute it
- * and/or modify it under version 3 of the License, or (at your option), any later version.
+ * This file is part of the mod-playerbots module for AzerothCore. See AUTHORS file for Copyright
+ * information; released under GNU GPL v2 license, redistribute/modify under version 2 of the License,
+ * or (at your option) any later version.
  */
 
-#ifndef _PLAYERBOT_CHATACTIONCONTEXTACTION_H
-#define _PLAYERBOT_CHATACTIONCONTEXTACTION_H
+#ifndef PLAYERBOTS_CHATACTIONCONTEXT_H
+#define PLAYERBOTS_CHATACTIONCONTEXT_H
 
 #include "AddLootAction.h"
 #include "AttackAction.h"
@@ -17,11 +18,13 @@
 #include "ChangeTalentsAction.h"
 #include "ChatShortcutActions.h"
 #include "CheatAction.h"
+#include "ChooseTargetActions.h"
 #include "CustomStrategyEditAction.h"
 #include "DebugAction.h"
 #include "DestroyItemAction.h"
 #include "DropQuestAction.h"
 #include "EquipAction.h"
+#include "EquipGlyphsAction.h"
 #include "FlagAction.h"
 #include "Formations.h"
 #include "GoAction.h"
@@ -35,13 +38,16 @@
 #include "ListQuestsActions.h"
 #include "ListSpellsAction.h"
 #include "LogLevelAction.h"
-#include "LootStrategyAction.h"
 #include "LootRollAction.h"
+#include "LootStrategyAction.h"
 #include "MailAction.h"
 #include "NamedObjectContext.h"
 #include "NewRpgAction.h"
+#include "OpenItemAction.h"
 #include "PassLeadershipToMasterAction.h"
+#include "PetsAction.h"
 #include "PositionAction.h"
+#include "PullActions.h"
 #include "QueryItemUsageAction.h"
 #include "QueryQuestAction.h"
 #include "RangeAction.h"
@@ -56,34 +62,34 @@
 #include "SellAction.h"
 #include "SendMailAction.h"
 #include "SetCraftAction.h"
+#include "SetFocusHealTargetsAction.h"
 #include "SetHomeAction.h"
 #include "ShareQuestAction.h"
 #include "SkipSpellsListAction.h"
 #include "Stances.h"
 #include "StatsAction.h"
+#include "TameAction.h"
 #include "TaxiAction.h"
 #include "TeleportAction.h"
 #include "TellCastFailedAction.h"
+#include "TellEmblemsAction.h"
+#include "TellGlyphsAction.h"
 #include "TellItemCountAction.h"
 #include "TellLosAction.h"
-#include "TellReputationAction.h"
 #include "TellPvpStatsAction.h"
+#include "TellReputationAction.h"
 #include "TellTargetAction.h"
 #include "TradeAction.h"
 #include "TrainerAction.h"
 #include "UnequipAction.h"
+#include "UnlockItemAction.h"
+#include "UnlockTradedItemAction.h"
 #include "UseItemAction.h"
 #include "UseMeetingStoneAction.h"
+#include "WaitForAttackAction.h"
 #include "WhoAction.h"
 #include "WipeAction.h"
 #include "WtsAction.h"
-#include "OpenItemAction.h"
-#include "UnlockItemAction.h"
-#include "UnlockTradedItemAction.h"
-#include "TameAction.h"
-#include "TellGlyphsAction.h"
-#include "EquipGlyphsAction.h"
-#include "PetsAction.h"
 
 class ChatActionContext : public NamedObjectContext<Action>
 {
@@ -117,6 +123,7 @@ public:
         creators["teleport"] = &ChatActionContext::teleport;
         creators["taxi"] = &ChatActionContext::taxi;
         creators["repair"] = &ChatActionContext::repair;
+        creators["emblems"] = &ChatActionContext::emblems;
         creators["use"] = &ChatActionContext::use;
         creators["item count"] = &ChatActionContext::item_count;
         creators["equip"] = &ChatActionContext::equip;
@@ -134,8 +141,11 @@ public:
         creators["maintenance"] = &ChatActionContext::maintenance;
         creators["remove glyph"] = &ChatActionContext::remove_glyph;
         creators["autogear"] = &ChatActionContext::autogear;
+        creators["autogear bis"] = &ChatActionContext::autogear_bis;
         creators["equip upgrade"] = &ChatActionContext::equip_upgrade;
         creators["attack my target"] = &ChatActionContext::attack_my_target;
+        creators["pull my target"] = &ChatActionContext::pull_my_target;
+        creators["pull rti target"] = &ChatActionContext::pull_rti_target;
         creators["chat"] = &ChatActionContext::chat;
         creators["home"] = &ChatActionContext::home;
         creators["destroy"] = &ChatActionContext::destroy;
@@ -160,6 +170,7 @@ public:
         creators["spirit healer"] = &ChatActionContext::spirit_healer;
         creators["position"] = &ChatActionContext::position;
         creators["tell target"] = &ChatActionContext::tell_target;
+        creators["target me"] = &ChatActionContext::target_requester;
         creators["summon"] = &ChatActionContext::summon;
         creators["who"] = &ChatActionContext::who;
         creators["save mana"] = &ChatActionContext::save_mana;
@@ -199,6 +210,8 @@ public:
         creators["pet"] = &ChatActionContext::pet;
         creators["pet attack"] = &ChatActionContext::pet_attack;
         creators["roll"] = &ChatActionContext::roll_action;
+        creators["wait for attack time"] = &ChatActionContext::wait_for_attack_time;
+        creators["focus heal targets"] = &ChatActionContext::focus_heal_targets;
     }
 
 private:
@@ -223,6 +236,7 @@ private:
     static Action* who(PlayerbotAI* botAI) { return new WhoAction(botAI); }
     static Action* summon(PlayerbotAI* botAI) { return new SummonAction(botAI); }
     static Action* tell_target(PlayerbotAI* botAI) { return new TellTargetAction(botAI); }
+    static Action* target_requester(PlayerbotAI* botAI) { return new TargetRequesterAction(botAI); }
     static Action* position(PlayerbotAI* botAI) { return new PositionAction(botAI); }
     static Action* spirit_healer(PlayerbotAI* botAI) { return new SpiritHealerAction(botAI); }
     static Action* rti(PlayerbotAI* botAI) { return new RtiAction(botAI); }
@@ -246,10 +260,13 @@ private:
     static Action* home(PlayerbotAI* botAI) { return new SetHomeAction(botAI); }
     static Action* chat(PlayerbotAI* botAI) { return new ChangeChatAction(botAI); }
     static Action* attack_my_target(PlayerbotAI* botAI) { return new AttackMyTargetAction(botAI); }
+    static Action* pull_my_target(PlayerbotAI* botAI) { return new PullMyTargetAction(botAI); }
+    static Action* pull_rti_target(PlayerbotAI* botAI) { return new PullRtiTargetAction(botAI); }
     static Action* trainer(PlayerbotAI* botAI) { return new TrainerAction(botAI); }
     static Action* maintenance(PlayerbotAI* botAI) { return new MaintenanceAction(botAI); }
     static Action* remove_glyph(PlayerbotAI* botAI) { return new RemoveGlyphAction(botAI); }
     static Action* autogear(PlayerbotAI* botAI) { return new AutoGearAction(botAI); }
+    static Action* autogear_bis(PlayerbotAI* botAI) { return new BisGearAction(botAI); }
     static Action* equip_upgrade(PlayerbotAI* botAI) { return new EquipUpgradeAction(botAI); }
     static Action* co(PlayerbotAI* botAI) { return new ChangeCombatStrategyAction(botAI); }
     static Action* nc(PlayerbotAI* botAI) { return new ChangeNonCombatStrategyAction(botAI); }
@@ -267,6 +284,7 @@ private:
     static Action* item_count(PlayerbotAI* botAI) { return new TellItemCountAction(botAI); }
     static Action* use(PlayerbotAI* botAI) { return new UseItemAction(botAI); }
     static Action* repair(PlayerbotAI* botAI) { return new RepairAllAction(botAI); }
+    static Action* emblems(PlayerbotAI* botAI) { return new TellEmblemsAction(botAI); }
     static Action* taxi(PlayerbotAI* botAI) { return new TaxiAction(botAI); }
     static Action* teleport(PlayerbotAI* botAI) { return new TeleportAction(botAI); }
     static Action* release(PlayerbotAI* botAI) { return new ReleaseSpiritAction(botAI); }
@@ -285,7 +303,7 @@ private:
     static Action* los(PlayerbotAI* botAI) { return new TellLosAction(botAI); }
     static Action* rpg_status(PlayerbotAI* botAI) { return new TellRpgStatusAction(botAI); }
     static Action* rpg_do_quest(PlayerbotAI* botAI) { return new StartRpgDoQuestAction(botAI); }
-    static Action* aura(PlayerbotAI* ai) { return new TellAuraAction(ai); }
+    static Action* aura(PlayerbotAI* botAI) { return new TellAuraAction(botAI); }
     static Action* ll(PlayerbotAI* botAI) { return new LootStrategyAction(botAI); }
     static Action* ss(PlayerbotAI* botAI) { return new SkipSpellsListAction(botAI); }
     static Action* add_all_loot(PlayerbotAI* botAI) { return new AddAllLootAction(botAI); }
@@ -299,18 +317,20 @@ private:
     static Action* guild_remove(PlayerbotAI* botAI) { return new GuildRemoveAction(botAI); }
     static Action* guild_leave(PlayerbotAI* botAI) { return new GuildLeaveAction(botAI); }
     static Action* rtsc(PlayerbotAI* botAI) { return new RTSCAction(botAI); }
-    static Action* naxx_chat_shortcut(PlayerbotAI* ai) { return new NaxxChatShortcutAction(ai); }
-    static Action* bwl_chat_shortcut(PlayerbotAI* ai) { return new BwlChatShortcutAction(ai); }
-    static Action* tell_estimated_dps(PlayerbotAI* ai) { return new TellEstimatedDpsAction(ai); }
-    static Action* join(PlayerbotAI* ai) { return new JoinGroupAction(ai); }
-    static Action* calc(PlayerbotAI* ai) { return new TellCalculateItemAction(ai); }
-    static Action* wipe(PlayerbotAI* ai) { return new WipeAction(ai); }
+    static Action* naxx_chat_shortcut(PlayerbotAI* botAI) { return new NaxxChatShortcutAction(botAI); }
+    static Action* bwl_chat_shortcut(PlayerbotAI* botAI) { return new BwlChatShortcutAction(botAI); }
+    static Action* tell_estimated_dps(PlayerbotAI* botAI) { return new TellEstimatedDpsAction(botAI); }
+    static Action* join(PlayerbotAI* botAI) { return new JoinGroupAction(botAI); }
+    static Action* calc(PlayerbotAI* botAI) { return new TellCalculateItemAction(botAI); }
+    static Action* wipe(PlayerbotAI* botAI) { return new WipeAction(botAI); }
     static Action* tame(PlayerbotAI* botAI) { return new TameAction(botAI); }
     static Action* glyphs(PlayerbotAI* botAI) { return new TellGlyphsAction(botAI); } // Added for custom Glyphs
-    static Action* glyph_equip(PlayerbotAI* ai) { return new EquipGlyphsAction(ai); } // Added for custom Glyphs
+    static Action* glyph_equip(PlayerbotAI* botAI) { return new EquipGlyphsAction(botAI); } // Added for custom Glyphs
     static Action* pet(PlayerbotAI* botAI) { return new PetsAction(botAI); }
     static Action* pet_attack(PlayerbotAI* botAI) { return new PetsAction(botAI, "attack"); }
     static Action* roll_action(PlayerbotAI* botAI) { return new RollAction(botAI); }
+    static Action* wait_for_attack_time(PlayerbotAI* botAI) { return new SetWaitForAttackTimeAction(botAI); }
+    static Action* focus_heal_targets(PlayerbotAI* botAI) { return new SetFocusHealTargetsAction(botAI); }
 };
 
 #endif

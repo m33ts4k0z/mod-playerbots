@@ -1,10 +1,10 @@
 /*
- * Copyright (C) 2016+ AzerothCore <www.azerothcore.org>, released under GNU AGPL v3 license, you may redistribute it
- * and/or modify it under version 3 of the License, or (at your option), any later version.
+ * This file is part of the mod-playerbots module for AzerothCore. See AUTHORS file for Copyright
+ * information; released under GNU GPL v2 license, redistribute/modify under version 2 of the License,
+ * or (at your option) any later version.
  */
 
 #include "Engine.h"
-
 #include "Action.h"
 #include "Event.h"
 #include "PerfMonitor.h"
@@ -118,10 +118,12 @@ void Engine::Init()
 {
     Reset();
 
+    hasTargetExclusions = false;
     for (std::map<std::string, Strategy*>::iterator i = strategies.begin(); i != strategies.end(); i++)
     {
         Strategy* strategy = i->second;
         strategyTypeMask |= strategy->GetType();
+        hasTargetExclusions |= strategy->HasTargetExclusions();
         strategy->InitMultipliers(multipliers);
         strategy->InitTriggers(triggers);
         for (auto &iter : strategy->actionNodeFactories.creators)
@@ -138,23 +140,26 @@ void Engine::Init()
     }
 }
 
-bool Engine::DoNextAction(Unit* unit, uint32 depth, bool minimal)
+bool Engine::DoNextAction(Unit* /*unit*/, uint32 /*depth*/, bool minimal)
 {
     LogAction("--- AI Tick ---");
 
-    if (sPlayerbotAIConfig.logValuesPerTick)
+    if (sPlayerbotAIConfig.LogValuesPerTick)
         LogValues();
 
     bool actionExecuted = false;
     ActionBasket* basket = nullptr;
     time_t currentTime = time(nullptr);
 
+    if (!minimal)
+        botAI->forceRebuff.RollBuffPendingCycle();
+
     // Update triggers and push default actions
     ProcessTriggers(minimal);
     PushDefaultActions();
 
     uint32 iterations = 0;
-    uint32 iterationsPerTick = queue.Size() * (minimal ? 2 : sPlayerbotAIConfig.iterationsPerTick);
+    uint32 iterationsPerTick = queue.Size() * (minimal ? 2 : sPlayerbotAIConfig.IterationsPerTick);
 
     while (++iterations <= iterationsPerTick)
     {
@@ -181,11 +186,20 @@ bool Engine::DoNextAction(Unit* unit, uint32 depth, bool minimal)
             // Apply multipliers early to avoid unnecessary iterations
             for (Multiplier* multiplier : multipliers)
             {
-                relevance *= multiplier->GetValue(action);
+                float value;
+                {
+                    PerfMonitorScope scope(multiplier->GetPerfData());
+                    value = multiplier->GetValue(action);
+                }
+
+                relevance *= value;
                 action->setRelevance(relevance);
 
                 if (relevance <= 0)
                 {
+                    if (value <= 0)
+                        multiplier->NoteBlock();
+
                     LogAction("Multiplier %s made action %s useless", multiplier->getName().c_str(), action->getName().c_str());
                     break;
                 }
@@ -369,10 +383,10 @@ void Engine::addStrategies(std::string first, ...)
     va_list vl;
     va_start(vl, first);
 
-    const char* cur;
+    char const* cur;
     do
     {
-        cur = va_arg(vl, const char*);
+        cur = va_arg(vl, char const*);
         if (cur)
             addStrategy(cur, false);
     } while (cur);
@@ -389,10 +403,10 @@ void Engine::addStrategiesNoInit(std::string first, ...)
     va_list vl;
     va_start(vl, first);
 
-    const char* cur;
+    char const* cur;
     do
     {
-        cur = va_arg(vl, const char*);
+        cur = va_arg(vl, char const*);
         if (cur)
             addStrategy(cur, false);
     } while (cur);
@@ -427,6 +441,12 @@ void Engine::toggleStrategy(std::string const name)
 }
 
 bool Engine::HasStrategy(std::string const name) { return strategies.find(name) != strategies.end(); }
+
+Strategy* Engine::GetStrategy(std::string const name)
+{
+    std::map<std::string, Strategy*>::iterator i = strategies.find(name);
+    return i != strategies.end() ? i->second : nullptr;
+}
 
 void Engine::ProcessTriggers(bool minimal)
 {
@@ -464,6 +484,9 @@ void Engine::ProcessTriggers(bool minimal)
 
             if (!event)
                 continue;
+
+            if (trigger->IsBuffTrigger() && !trigger->IsDebuffTrigger())
+                botAI->forceRebuff.NoteBuffProposed();
 
             fires[trigger] = event;
             LogAction("T:%s", trigger->getName().c_str());
@@ -553,6 +576,13 @@ Action* Engine::InitializeAction(ActionNode* actionNode)
         actionNode->setAction(action);
     }
 
+    if (action)
+    {
+        action->SetReaction(false);
+        // Clear duration leftovers so ListenAndExecute doesn't re-apply a stale delay
+        action->ResetDuration();
+    }
+
     return action;
 }
 
@@ -593,13 +623,17 @@ bool Engine::ListenAndExecute(Action* action, Event event)
 
     actionExecuted = actionExecutionListeners.OverrideResult(action, actionExecuted, event);
     actionExecutionListeners.After(action, actionExecuted, event);
+
+    if (actionExecuted && action->GetDuration() > 0)
+        botAI->SetActionDuration(action);
+
     return actionExecuted;
 }
 
 void Engine::LogAction(char const* format, ...)
 {
     Player* bot = botAI->GetBot();
-    if (sPlayerbotAIConfig.logInGroupOnly && (!bot->GetGroup() || !botAI->HasRealPlayerMaster()) && !testMode)
+    if (sPlayerbotAIConfig.LogInGroupOnly && (!bot->GetGroup() || !botAI->HasGameClientMaster()) && !testMode)
         return;
 
     char buf[1024];
@@ -631,6 +665,15 @@ void Engine::LogAction(char const* format, ...)
     }
 }
 
+std::string const Engine::ResolveStrategyName(std::string const name)
+{
+    if (HasStrategy(name))
+        return name;
+
+    Strategy* strategy = aiObjectContext->GetStrategy(name);
+    return strategy ? strategy->getName() : name;
+}
+
 void Engine::ChangeStrategy(std::string const names)
 {
     std::vector<std::string> splitted = split(names, ',');
@@ -643,10 +686,10 @@ void Engine::ChangeStrategy(std::string const names)
                 addStrategy(name + 1);
                 break;
             case '-':
-                removeStrategy(name + 1);
+                removeStrategy(ResolveStrategyName(name + 1));
                 break;
             case '~':
-                toggleStrategy(name + 1);
+                toggleStrategy(ResolveStrategyName(name + 1));
                 break;
             case '?':
                 botAI->TellMaster(ListStrategies());
@@ -661,7 +704,7 @@ void Engine::LogValues()
         return;
 
     Player* bot = botAI->GetBot();
-    if (sPlayerbotAIConfig.logInGroupOnly && (!bot->GetGroup() || !botAI->HasRealPlayerMaster()))
+    if (sPlayerbotAIConfig.LogInGroupOnly && (!bot->GetGroup() || !botAI->HasGameClientMaster()))
         return;
 
     std::string const text = botAI->GetAiObjectContext()->FormatValues();

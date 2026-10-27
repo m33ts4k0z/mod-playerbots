@@ -1,15 +1,15 @@
 /*
- * Copyright (C) 2016+ AzerothCore <www.azerothcore.org>, released under GNU AGPL v3 license, you may redistribute it
- * and/or modify it under version 3 of the License, or (at your option), any later version.
+ * This file is part of the mod-playerbots module for AzerothCore. See AUTHORS file for Copyright
+ * information; released under GNU GPL v2 license, redistribute/modify under version 2 of the License,
+ * or (at your option) any later version.
  */
 
 #include "PartyMemberValue.h"
 #include "Corpse.h"
-
 #include "Group.h"
+#include "Pet.h"
 #include "PlayerbotAI.h"
 #include "ServerFacade.h"
-#include "Pet.h"
 #include "Spell.h"
 
 Unit* PartyMemberValue::FindPartyMember(std::vector<Player*>* party, FindPlayerPredicate& predicate)
@@ -27,7 +27,7 @@ Unit* PartyMemberValue::FindPartyMember(std::vector<Player*>* party, FindPlayerP
     return nullptr;
 }
 
-Unit* PartyMemberValue::FindPartyMember(FindPlayerPredicate& predicate, bool ignoreOutOfGroup)
+Unit* PartyMemberValue::FindPartyMember(FindPlayerPredicate& predicate, bool /*ignoreOutOfGroup*/)
 {
     Player* master = GetMaster();
     // GuidVector nearestPlayers;
@@ -77,9 +77,9 @@ Unit* PartyMemberValue::FindPartyMember(FindPlayerPredicate& predicate, bool ign
         if (!player)
             continue;
 
-        if (botAI->IsHeal(player))
+        if (PlayerbotAI::IsHeal(player))
             healers.push_back(player);
-        else if (botAI->IsTank(player))
+        else if (PlayerbotAI::IsTank(player))
             tanks.push_back(player);
         else if (player != master)
             others.push_back(player);
@@ -106,10 +106,10 @@ Unit* PartyMemberValue::FindPartyMember(FindPlayerPredicate& predicate, bool ign
 bool PartyMemberValue::Check(Unit* player)
 {
     // return player && player != bot && player->GetMapId() == bot->GetMapId() && bot->IsWithinDistInMap(player,
-    // sPlayerbotAIConfig.sightDistance, false);
+    // sPlayerbotAIConfig.SightDistance, false);
     bool isGM = player->ToPlayer() && player->ToPlayer()->IsGameMaster();
     return player && player->GetMapId() == bot->GetMapId() && !isGM &&
-           bot->GetDistance(player) < sPlayerbotAIConfig.spellDistance * 2 &&
+           bot->GetDistance(player) < sPlayerbotAIConfig.SpellDistance * 2 &&
            bot->IsWithinLOS(player->GetPositionX(), player->GetPositionY(), player->GetPositionZ());
 }
 
@@ -154,8 +154,6 @@ bool PartyMemberValue::IsTargetOfSpellCast(Player* target, SpellEntryPredicate& 
 class FindMainTankPlayer : public FindPlayerPredicate
 {
 public:
-    FindMainTankPlayer(PlayerbotAI* botAI) : botAI(botAI) {}
-
     virtual bool Check(Unit* unit)
     {
         Player* player = unit->ToPlayer();
@@ -163,15 +161,12 @@ public:
         {
             return false;
         }
-        return botAI->IsMainTank(player);
+        return PlayerbotAI::IsMainTank(player);
     }
-
-private:
-    PlayerbotAI* botAI;
 };
 
 Unit* PartyMemberMainTankValue::Calculate()
 {
-    FindMainTankPlayer findMainTankPlayer(botAI);
+    FindMainTankPlayer findMainTankPlayer;
     return FindPartyMember(findMainTankPlayer);
 }

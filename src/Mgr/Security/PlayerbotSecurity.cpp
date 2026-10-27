@@ -1,10 +1,10 @@
 /*
- * Copyright (C) 2016+ AzerothCore <www.azerothcore.org>, released under GNU AGPL v3 license, you may redistribute it
- * and/or modify it under version 3 of the License, or (at your option), any later version.
+ * This file is part of the mod-playerbots module for AzerothCore. See AUTHORS file for Copyright
+ * information; released under GNU GPL v2 license, redistribute/modify under version 2 of the License,
+ * or (at your option) any later version.
  */
 
 #include "PlayerbotSecurity.h"
-
 #include "LFGMgr.h"
 #include "PlayerbotAIConfig.h"
 #include "Playerbots.h"
@@ -27,7 +27,7 @@ PlayerbotSecurityLevel PlayerbotSecurity::LevelFor(Player* from, DenyReason* rea
     }
 
     // GMs always have full access
-    if (from->GetSession()->GetSecurity() >= SEC_GAMEMASTER)
+    if (from->CanBeGameMaster())
         return PLAYERBOT_SECURITY_ALLOW_ALL;
 
     PlayerbotAI* botAI = GET_PLAYERBOT_AI(bot);
@@ -58,6 +58,12 @@ PlayerbotSecurityLevel PlayerbotSecurity::LevelFor(Player* from, DenyReason* rea
             return PLAYERBOT_SECURITY_DENY_ALL;
         }
 
+        // In a BG random bots have no master and the team shares one raid, so the group check denies everyone
+        if (sPlayerbotAIConfig.AllowBattlegroundCommands && !ignoreGroup && !botAI->HasGameClientMaster() &&
+            bot->InBattleground() && bot->GetBattlegroundId() == from->GetBattlegroundId() &&
+            bot->GetBgTeamId() == from->GetBgTeamId() && (IsRealPlayer(from) || IsSelfBot(from)))
+            return PLAYERBOT_SECURITY_ALLOW_ALL;
+
         Group* fromGroup = from->GetGroup();
         Group* botGroup = bot->GetGroup();
 
@@ -72,7 +78,7 @@ PlayerbotSecurityLevel PlayerbotSecurity::LevelFor(Player* from, DenyReason* rea
             return PLAYERBOT_SECURITY_TALK;
         }
 
-        if (sPlayerbotAIConfig.groupInvitationPermission <= 0)
+        if (sPlayerbotAIConfig.GroupInvitationPermission <= 0)
         {
             if (reason)
                 *reason = PLAYERBOT_DENY_NONE;
@@ -80,7 +86,7 @@ PlayerbotSecurityLevel PlayerbotSecurity::LevelFor(Player* from, DenyReason* rea
             return PLAYERBOT_SECURITY_TALK;
         }
 
-        if (sPlayerbotAIConfig.groupInvitationPermission <= 1)
+        if (sPlayerbotAIConfig.GroupInvitationPermission <= 1)
         {
             int32 levelDiff = int32(bot->GetLevel()) - int32(from->GetLevel());
             if (levelDiff > 5)
@@ -98,7 +104,7 @@ PlayerbotSecurityLevel PlayerbotSecurity::LevelFor(Player* from, DenyReason* rea
         int32 botGS = static_cast<int32>(botAI->GetEquipGearScore(bot));
         int32 fromGS = static_cast<int32>(botAI->GetEquipGearScore(from));
 
-        if (sPlayerbotAIConfig.gearscorecheck && botGS && bot->GetLevel() > 15 && botGS > fromGS)
+        if (sPlayerbotAIConfig.GearScoreCheck && botGS && bot->GetLevel() > 15 && botGS > fromGS)
         {
             uint32 diffPct = uint32(100 * (botGS - fromGS) / botGS);
             uint32 reqPct = uint32(12 * sWorld->getIntConfig(CONFIG_MAX_PLAYER_LEVEL) / from->GetLevel());
@@ -179,7 +185,7 @@ bool PlayerbotSecurity::CheckLevelFor(PlayerbotSecurityLevel level, bool silent,
         return true;
 
     PlayerbotAI* fromBotAI = GET_PLAYERBOT_AI(from);
-    if (silent || (fromBotAI && !fromBotAI->IsRealPlayer()))
+    if (silent || (fromBotAI && !IsSelfBot(from)))
         return false;
 
     PlayerbotAI* botAI = GET_PLAYERBOT_AI(bot);
@@ -188,9 +194,8 @@ bool PlayerbotSecurity::CheckLevelFor(PlayerbotSecurityLevel level, bool silent,
 
     Player* master = botAI->GetMaster();
     if (master && botAI->IsOpposing(master))
-        if (WorldSession* session = master->GetSession())
-            if (session->GetSecurity() < SEC_GAMEMASTER)
-                return false;
+        if (master->GetSession() && !master->CanBeGameMaster())
+            return false;
 
     std::ostringstream out;
 
@@ -277,7 +282,7 @@ bool PlayerbotSecurity::CheckLevelFor(PlayerbotSecurityLevel level, bool silent,
     ObjectGuid guid = from->GetGUID();
     time_t lastSaid = whispers[guid][text];
 
-    if (!lastSaid || (time(nullptr) - lastSaid) >= sPlayerbotAIConfig.repeatDelay / 1000)
+    if (!lastSaid || (time(nullptr) - lastSaid) >= sPlayerbotAIConfig.RepeatDelay / 1000)
     {
         whispers[guid][text] = time(nullptr);
 

@@ -1,13 +1,14 @@
 /*
- * Copyright (C) 2016+ AzerothCore <www.azerothcore.org>, released under GNU AGPL v3 license, you may redistribute it
- * and/or modify it under version 3 of the License, or (at your option), any later version.
+ * This file is part of the mod-playerbots module for AzerothCore. See AUTHORS file for Copyright
+ * information; released under GNU GPL v2 license, redistribute/modify under version 2 of the License,
+ * or (at your option) any later version.
  */
 
 #include "RtiAction.h"
-
 #include "Event.h"
 #include "Playerbots.h"
 #include "RtiTargetValue.h"
+#include "Strategy.h"
 
 bool RtiAction::Execute(Event event)
 {
@@ -66,8 +67,12 @@ bool MarkRtiAction::Execute(Event /*event*/)
 
     Unit* target = nullptr;
     GuidVector attackers = botAI->GetAiObjectContext()->GetValue<GuidVector>("attackers")->Get();
+    GuidSet const exclusions = GatherStrategyTargetExclusions(botAI, TargetValueExclusionType::DpsTarget);
     for (ObjectGuid const guid : attackers)
     {
+        if (exclusions.find(guid) != exclusions.end())
+            continue;
+
         Unit* unit = botAI->GetUnit(guid);
         if (!unit)
             continue;

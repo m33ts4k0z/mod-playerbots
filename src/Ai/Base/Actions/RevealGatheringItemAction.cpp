@@ -1,18 +1,18 @@
 /*
- * Copyright (C) 2016+ AzerothCore <www.azerothcore.org>, released under GNU AGPL v3 license, you may redistribute it
- * and/or modify it under version 3 of the License, or (at your option), any later version.
+ * This file is part of the mod-playerbots module for AzerothCore. See AUTHORS file for Copyright
+ * information; released under GNU GPL v2 license, redistribute/modify under version 2 of the License,
+ * or (at your option) any later version.
  */
 
 #include "RevealGatheringItemAction.h"
-
 #include "CellImpl.h"
 #include "ChatHelper.h"
 #include "Event.h"
 #include "GridNotifiers.h"
 #include "GridNotifiersImpl.h"
+#include "NearestGameObjects.h"
 #include "PlayerbotAI.h"
 #include "ServerFacade.h"
-#include "NearestGameObjects.h"
 
 bool RevealGatheringItemAction::Execute(Event /*event*/)
 {
@@ -20,16 +20,16 @@ bool RevealGatheringItemAction::Execute(Event /*event*/)
         return false;
 
     std::list<GameObject*> targets;
-    AnyGameObjectInObjectRangeCheck u_check(bot, sPlayerbotAIConfig.grindDistance);
+    AnyGameObjectInObjectRangeCheck u_check(bot, sPlayerbotAIConfig.GrindDistance);
     Acore::GameObjectListSearcher<AnyGameObjectInObjectRangeCheck> searcher(bot, targets, u_check);
-    Cell::VisitObjects(bot, searcher, sPlayerbotAIConfig.reactDistance);
+    Cell::VisitObjects(bot, searcher, sPlayerbotAIConfig.ReactDistance);
 
     std::vector<GameObject*> result;
     for (GameObject* go : targets)
     {
         if (!go || !go->isSpawned() ||
             ServerFacade::instance().IsDistanceLessOrEqualThan(ServerFacade::instance().GetDistance2d(bot, go),
-                                                     sPlayerbotAIConfig.lootDistance))
+                                                     sPlayerbotAIConfig.LootDistance))
             continue;
 
         if (LockEntry const* lockInfo = sLockStore.LookupEntry(go->GetGOInfo()->GetLockId()))

@@ -1,10 +1,11 @@
 /*
- * Copyright (C) 2016+ AzerothCore <www.azerothcore.org>, released under GNU AGPL v3 license, you may redistribute it
- * and/or modify it under version 3 of the License, or (at your option), any later version.
+ * This file is part of the mod-playerbots module for AzerothCore. See AUTHORS file for Copyright
+ * information; released under GNU GPL v2 license, redistribute/modify under version 2 of the License,
+ * or (at your option) any later version.
  */
 
-#ifndef _PLAYERBOT_BATTLEGROUNDTACTICSACTION_H
-#define _PLAYERBOT_BATTLEGROUNDTACTICSACTION_H
+#ifndef PLAYERBOTS_BATTLEGROUNDTACTICS_H
+#define PLAYERBOTS_BATTLEGROUNDTACTICS_H
 
 #include "BattlegroundAV.h"
 #include "MovementActions.h"
@@ -57,8 +58,6 @@ struct BGStrategyData
     uint8 hordeStrategy = 0;
 };
 
-extern std::unordered_map<uint32, BGStrategyData> bgStrategies;
-
 struct BattleBotWaypoint
 {
     BattleBotWaypoint(float x_, float y_, float z_, BattleBotWaypointFunc func) : x(x_), y(y_), z(z_), pFunc(func){};
@@ -107,6 +106,8 @@ class BGTactics : public MovementAction
 public:
     static bool HandleConsoleCommand(ChatHandler* handler, char const* args);
     uint8 static GetBotStrategyForTeam(Battleground* bg, TeamId teamId);
+    static void SetBotStrategies(uint32 instanceId, BGStrategyData const& data);
+    static void ClearBotStrategies(uint32 instanceId);
 
     BGTactics(PlayerbotAI* botAI, std::string const name = "bg tactics") : MovementAction(botAI, name) {}
 

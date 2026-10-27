@@ -1,10 +1,11 @@
 /*
- * Copyright (C) 2016+ AzerothCore <www.azerothcore.org>, released under GNU AGPL v3 license, you may redistribute it
- * and/or modify it under version 3 of the License, or (at your option), any later version.
+ * This file is part of the mod-playerbots module for AzerothCore. See AUTHORS file for Copyright
+ * information; released under GNU GPL v2 license, redistribute/modify under version 2 of the License,
+ * or (at your option) any later version.
  */
 
-#ifndef _PLAYERBOT_DESTROYITEMACTION_H
-#define _PLAYERBOT_DESTROYITEMACTION_H
+#ifndef PLAYERBOTS_DESTROYITEMACTION_H
+#define PLAYERBOTS_DESTROYITEMACTION_H
 
 #include "InventoryAction.h"
 
@@ -19,6 +20,7 @@ public:
     bool Execute(Event event) override;
 
 protected:
+    // Destroys every match. An unsaved Item is deleted here, so callers must not hold Item* across this.
     void DestroyItem(FindItemVisitor* visitor);
 };
 
@@ -29,6 +31,9 @@ public:
 
     bool Execute(Event event) override;
     bool isUseful() override;
+
+private:
+    bool DestroyUntilBagSpace(std::vector<uint32> const& itemIds);
 };
 
 #endif

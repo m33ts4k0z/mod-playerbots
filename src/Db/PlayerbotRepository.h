@@ -1,16 +1,17 @@
 /*
- * Copyright (C) 2016+ AzerothCore <www.azerothcore.org>, released under GNU AGPL v3 license, you may redistribute it
- * and/or modify it under version 3 of the License, or (at your option), any later version.
+ * This file is part of the mod-playerbots module for AzerothCore. See AUTHORS file for Copyright
+ * information; released under GNU GPL v2 license, redistribute/modify under version 2 of the License,
+ * or (at your option) any later version.
  */
 
-#ifndef _PLAYERBOT_PLAYERBOTREPOSITORY_H
-#define _PLAYERBOT_PLAYERBOTREPOSITORY_H
+#ifndef PLAYERBOTS_PLAYERBOTREPOSITORY_H
+#define PLAYERBOTS_PLAYERBOTREPOSITORY_H
 
+#include "PlayerbotAI.h"
+#include "PlayerbotsDatabase.h"
 #include <cstdint>
 #include <string>
 #include <vector>
-
-#include "PlayerbotAI.h"
 
 class PlayerbotRepository
 {
@@ -30,13 +31,14 @@ private:
     PlayerbotRepository() = default;
     ~PlayerbotRepository() = default;
 
-    PlayerbotRepository(const PlayerbotRepository&) = delete;
-    PlayerbotRepository& operator=(const PlayerbotRepository&) = delete;
+    PlayerbotRepository(PlayerbotRepository const&) = delete;
+    PlayerbotRepository& operator=(PlayerbotRepository const&) = delete;
 
     PlayerbotRepository(PlayerbotRepository&&) = delete;
     PlayerbotRepository& operator=(PlayerbotRepository&&) = delete;
 
-    void SaveValue(uint32_t guid, std::string const key, std::string const value);
+    void SaveValue(PlayerbotsDatabaseTransaction trans, uint32_t guid, std::string const key,
+                   std::string const value);
     std::string const FormatStrategies(std::string const type, std::vector<std::string> strategies);
 };
 

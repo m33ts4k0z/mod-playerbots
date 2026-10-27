@@ -1,12 +1,12 @@
 /*
- * Copyright (C) 2016+ AzerothCore <www.azerothcore.org>, released under GNU AGPL v3 license, you may redistribute it
- * and/or modify it under version 3 of the License, or (at your option), any later version.
+ * This file is part of the mod-playerbots module for AzerothCore. See AUTHORS file for Copyright
+ * information; released under GNU GPL v2 license, redistribute/modify under version 2 of the License,
+ * or (at your option) any later version.
  */
 
 #include "FishingAction.h"
-#include "FishValues.h"
 #include "Event.h"
-
+#include "FishValues.h"
 #include "GridNotifiers.h"
 #include "GridNotifiersImpl.h"
 #include "ItemPackets.h"
@@ -34,7 +34,7 @@ static bool IsFishingPole(Item* const item)
 {
     if (!item)
         return false;
-    const ItemTemplate* proto = item->GetTemplate();
+    ItemTemplate const* proto = item->GetTemplate();
     return proto && proto->Class == ITEM_CLASS_WEAPON &&
         proto->SubClass == ITEM_SUBCLASS_WEAPON_FISHING_POLE;
 }
@@ -272,9 +272,9 @@ bool MoveNearWaterAction::isPossible()
     float fishingSearchWindow;
 
     if (master)
-        fishingSearchWindow = sPlayerbotAIConfig.fishingDistanceFromMaster;
+        fishingSearchWindow = sPlayerbotAIConfig.FishingDistanceFromMaster;
     else
-        fishingSearchWindow = sPlayerbotAIConfig.fishingDistance;
+        fishingSearchWindow = sPlayerbotAIConfig.FishingDistance;
 
     WorldPosition fishingHole = FindFishingHole(botAI);
 
@@ -497,7 +497,7 @@ bool EndMasterFishingAction::isUseful()
         return false;
 
     WorldPosition nearWater = FindWaterRadial(bot, bot->GetPositionX(), bot->GetPositionY(), bot->GetPositionZ(),
-        bot->GetMap(), bot->GetPhaseMask(), MIN_DISTANCE_TO_WATER, sPlayerbotAIConfig.endFishingWithMaster, 10.0f);
+        bot->GetMap(), bot->GetPhaseMask(), MIN_DISTANCE_TO_WATER, sPlayerbotAIConfig.EndFishingWithMaster, 10.0f);
     return !nearWater.IsValid();
 }
 

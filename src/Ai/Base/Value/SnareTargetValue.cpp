@@ -1,10 +1,10 @@
 /*
- * Copyright (C) 2016+ AzerothCore <www.azerothcore.org>, released under GNU AGPL v3 license, you may redistribute it
- * and/or modify it under version 3 of the License, or (at your option), any later version.
+ * This file is part of the mod-playerbots module for AzerothCore. See AUTHORS file for Copyright
+ * information; released under GNU GPL v2 license, redistribute/modify under version 2 of the License,
+ * or (at your option) any later version.
  */
 
 #include "SnareTargetValue.h"
-
 #include "AiObjectContext.h"
 #include "PlayerbotAI.h"
 #include "ServerFacade.h"
@@ -38,7 +38,7 @@ Unit* SnareTargetValue::Calculate()
                 bool shouldSnare = true;
 
                 // do not slow down if bot is melee and mob/bot attack each other
-                if (chaseTargetPlayer && !botAI->IsRanged(bot) && chaseTargetPlayer == bot)
+                if (chaseTargetPlayer && !PlayerbotAI::IsRanged(bot) && chaseTargetPlayer == bot)
                     shouldSnare = false;
 
                 if (!unit->isMoving())
@@ -47,7 +47,7 @@ Unit* SnareTargetValue::Calculate()
                 if (unit->HasAuraType(SPELL_AURA_MOD_ROOT))
                     shouldSnare = false;
 
-                if (chaseTargetPlayer && shouldSnare && !botAI->IsTank(chaseTargetPlayer))
+                if (chaseTargetPlayer && shouldSnare && !PlayerbotAI::IsTank(chaseTargetPlayer))
                 {
                     return unit;
                 }

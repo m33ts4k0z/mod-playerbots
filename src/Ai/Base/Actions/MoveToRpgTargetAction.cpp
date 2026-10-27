@@ -1,10 +1,10 @@
 /*
- * Copyright (C) 2016+ AzerothCore <www.azerothcore.org>, released under GNU AGPL v3 license, you may redistribute it
- * and/or modify it under version 3 of the License, or (at your option), any later version.
+ * This file is part of the mod-playerbots module for AzerothCore. See AUTHORS file for Copyright
+ * information; released under GNU GPL v2 license, redistribute/modify under version 2 of the License,
+ * or (at your option) any later version.
  */
 
 #include "MoveToRpgTargetAction.h"
-
 #include "ChatHelper.h"
 #include "ChooseRpgTargetAction.h"
 #include "Event.h"
@@ -57,7 +57,7 @@ bool MoveToRpgTargetAction::Execute(Event /*event*/)
     }
 
     if ((unit && unit->isMoving() && !urand(0, 20)) || !ChooseRpgTargetAction::isFollowValid(bot, wo) ||
-        guidP.distance(bot) > sPlayerbotAIConfig.reactDistance * 2 || !urand(0, 50))
+        guidP.distance(bot) > sPlayerbotAIConfig.ReactDistance * 2 || !urand(0, 50))
     {
         AI_VALUE(GuidSet&, "ignore rpg target").insert(AI_VALUE(GuidPosition, "rpg target"));
         RESET_AI_VALUE(GuidPosition, "rpg target");
@@ -69,7 +69,7 @@ bool MoveToRpgTargetAction::Execute(Event /*event*/)
     float z = wo->GetPositionZ();
     float mapId = wo->GetMapId();
 
-    if (sPlayerbotAIConfig.randombotsWalkingRPG)
+    if (sPlayerbotAIConfig.RandomBotsWalkingRPG)
         if (!bot->IsOutdoors())
             bot->m_movementInfo.AddMovementFlag(MOVEMENTFLAG_WALKING);
 

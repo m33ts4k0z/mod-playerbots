@@ -1,15 +1,15 @@
 /*
- * Copyright (C) 2016+ AzerothCore <www.azerothcore.org>, released under GNU AGPL v3 license, you may redistribute it
- * and/or modify it under version 3 of the License, or (at your option), any later version.
+ * This file is part of the mod-playerbots module for AzerothCore. See AUTHORS file for Copyright
+ * information; released under GNU GPL v2 license, redistribute/modify under version 2 of the License,
+ * or (at your option) any later version.
  */
 
 #include "XpGainAction.h"
-
+#include "BroadcastHelper.h"
 #include "Event.h"
 #include "GuildMgr.h"
 #include "PlayerbotAIConfig.h"
 #include "Playerbots.h"
-#include "BroadcastHelper.h"
 
 bool XpGainAction::Execute(Event event)
 {
@@ -40,14 +40,14 @@ bool XpGainAction::Execute(Event event)
     }
 
     // randomBotXPRate is now implemented in OnPlayerGiveXP script
-    // if (!sRandomPlayerbotMgr.IsRandomBot(bot) || sPlayerbotAIConfig.randomBotXPRate == 1)
+    // if (!sRandomPlayerbotMgr.IsRandomBot(bot) || sPlayerbotAIConfig.RandomBotXPRate == 1)
     //     return true;
 
     // Unit* victim = nullptr;
     // if (guid)
     //     victim = botAI->GetUnit(guid);
 
-    // xpgain = xpgain * (sPlayerbotAIConfig.randomBotXPRate - 1);
+    // xpgain = xpgain * (sPlayerbotAIConfig.RandomBotXPRate - 1);
     // GiveXP(xpgain, victim);
 
     return true;

@@ -1,48 +1,47 @@
 /*
- * Copyright (C) 2016+ AzerothCore <www.azerothcore.org>, released under GNU AGPL v3 license, you may redistribute it
- * and/or modify it under version 3 of the License, or (at your option), any later version.
+ * This file is part of the mod-playerbots module for AzerothCore. See AUTHORS file for Copyright
+ * information; released under GNU GPL v2 license, redistribute/modify under version 2 of the License,
+ * or (at your option) any later version.
  */
 
 #include "PossibleRpgTargetsValue.h"
-
 #include "CellImpl.h"
 #include "GridNotifiers.h"
 #include "GridNotifiersImpl.h"
+#include "NearestGameObjects.h"
 #include "ObjectGuid.h"
 #include "Playerbots.h"
 #include "ServerFacade.h"
 #include "SharedDefines.h"
-#include "NearestGameObjects.h"
+#include <unordered_set>
 
-std::vector<uint32> PossibleRpgTargetsValue::allowedNpcFlags;
+const std::vector<uint32> PossibleRpgTargetsValue::allowedNpcFlags = {
+    UNIT_NPC_FLAG_INNKEEPER,
+    UNIT_NPC_FLAG_GOSSIP,
+    UNIT_NPC_FLAG_QUESTGIVER,
+    UNIT_NPC_FLAG_FLIGHTMASTER,
+    UNIT_NPC_FLAG_BANKER,
+    UNIT_NPC_FLAG_GUILD_BANKER,
+    UNIT_NPC_FLAG_TRAINER_CLASS,
+    UNIT_NPC_FLAG_TRAINER_PROFESSION,
+    UNIT_NPC_FLAG_VENDOR_AMMO,
+    UNIT_NPC_FLAG_VENDOR_FOOD,
+    UNIT_NPC_FLAG_VENDOR_POISON,
+    UNIT_NPC_FLAG_VENDOR_REAGENT,
+    UNIT_NPC_FLAG_AUCTIONEER,
+    UNIT_NPC_FLAG_STABLEMASTER,
+    UNIT_NPC_FLAG_PETITIONER,
+    UNIT_NPC_FLAG_TABARDDESIGNER,
+    UNIT_NPC_FLAG_BATTLEMASTER,
+
+    UNIT_NPC_FLAG_TRAINER,
+    UNIT_NPC_FLAG_VENDOR,
+    UNIT_NPC_FLAG_REPAIR,
+};
 
 PossibleRpgTargetsValue::PossibleRpgTargetsValue(PlayerbotAI* botAI, float range)
     : NearestUnitsValue(botAI, "possible rpg targets", range, true)
 {
-    if (allowedNpcFlags.empty())
-    {
-        allowedNpcFlags.push_back(UNIT_NPC_FLAG_INNKEEPER);
-        allowedNpcFlags.push_back(UNIT_NPC_FLAG_GOSSIP);
-        allowedNpcFlags.push_back(UNIT_NPC_FLAG_QUESTGIVER);
-        allowedNpcFlags.push_back(UNIT_NPC_FLAG_FLIGHTMASTER);
-        allowedNpcFlags.push_back(UNIT_NPC_FLAG_BANKER);
-        allowedNpcFlags.push_back(UNIT_NPC_FLAG_GUILD_BANKER);
-        allowedNpcFlags.push_back(UNIT_NPC_FLAG_TRAINER_CLASS);
-        allowedNpcFlags.push_back(UNIT_NPC_FLAG_TRAINER_PROFESSION);
-        allowedNpcFlags.push_back(UNIT_NPC_FLAG_VENDOR_AMMO);
-        allowedNpcFlags.push_back(UNIT_NPC_FLAG_VENDOR_FOOD);
-        allowedNpcFlags.push_back(UNIT_NPC_FLAG_VENDOR_POISON);
-        allowedNpcFlags.push_back(UNIT_NPC_FLAG_VENDOR_REAGENT);
-        allowedNpcFlags.push_back(UNIT_NPC_FLAG_AUCTIONEER);
-        allowedNpcFlags.push_back(UNIT_NPC_FLAG_STABLEMASTER);
-        allowedNpcFlags.push_back(UNIT_NPC_FLAG_PETITIONER);
-        allowedNpcFlags.push_back(UNIT_NPC_FLAG_TABARDDESIGNER);
-        allowedNpcFlags.push_back(UNIT_NPC_FLAG_BATTLEMASTER);
-
-        allowedNpcFlags.push_back(UNIT_NPC_FLAG_TRAINER);
-        allowedNpcFlags.push_back(UNIT_NPC_FLAG_VENDOR);
-        allowedNpcFlags.push_back(UNIT_NPC_FLAG_REPAIR);
-    }
 }
 
 void PossibleRpgTargetsValue::FindUnits(std::list<Unit*>& targets)
@@ -60,7 +59,7 @@ bool PossibleRpgTargetsValue::AcceptUnit(Unit* unit)
     if (unit->IsHostileTo(bot) || unit->IsPlayer())
         return false;
 
-    if (ServerFacade::instance().GetDistance2d(bot, unit) <= sPlayerbotAIConfig.tooCloseDistance)
+    if (ServerFacade::instance().GetDistance2d(bot, unit) <= sPlayerbotAIConfig.TooCloseDistance)
         return false;
 
     if (unit->HasNpcFlag(UNIT_NPC_FLAG_SPIRITHEALER))
@@ -74,7 +73,7 @@ bool PossibleRpgTargetsValue::AcceptUnit(Unit* unit)
 
     TravelTarget* travelTarget = context->GetValue<TravelTarget*>("travel target")->Get();
     if (travelTarget && travelTarget->getDestination() &&
-        travelTarget->getDestination()->getEntry() == unit->GetEntry())
+        static_cast<uint32>(travelTarget->getDestination()->getEntry()) == unit->GetEntry())
         return true;
 
     if (urand(1, 100) < 25 && unit->IsFriendlyTo(bot))
@@ -86,39 +85,45 @@ bool PossibleRpgTargetsValue::AcceptUnit(Unit* unit)
     return false;
 }
 
-std::vector<uint32> PossibleNewRpgTargetsValue::allowedNpcFlags;
+const std::vector<uint32> PossibleNewRpgTargetsValue::allowedNpcFlags = {
+    UNIT_NPC_FLAG_INNKEEPER,
+    UNIT_NPC_FLAG_GOSSIP,
+    UNIT_NPC_FLAG_QUESTGIVER,
+    UNIT_NPC_FLAG_FLIGHTMASTER,
+    UNIT_NPC_FLAG_BANKER,
+    UNIT_NPC_FLAG_GUILD_BANKER,
+    UNIT_NPC_FLAG_TRAINER_CLASS,
+    UNIT_NPC_FLAG_TRAINER_PROFESSION,
+    UNIT_NPC_FLAG_VENDOR_AMMO,
+    UNIT_NPC_FLAG_VENDOR_FOOD,
+    UNIT_NPC_FLAG_VENDOR_POISON,
+    UNIT_NPC_FLAG_VENDOR_REAGENT,
+    UNIT_NPC_FLAG_AUCTIONEER,
+    UNIT_NPC_FLAG_STABLEMASTER,
+    UNIT_NPC_FLAG_PETITIONER,
+    UNIT_NPC_FLAG_TABARDDESIGNER,
+    UNIT_NPC_FLAG_BATTLEMASTER,
+
+    UNIT_NPC_FLAG_TRAINER,
+    UNIT_NPC_FLAG_VENDOR,
+    UNIT_NPC_FLAG_REPAIR,
+};
+
+// Sparse starting zones where the default scan range is insufficient for WANDER_NPC (requires >= 3 NPCs)
+static const std::unordered_set<uint32> rpgRangeOverrideAreaIds = { 3526 /* Ammen Vale */, 2117 /* Deathknell */ };
 
 PossibleNewRpgTargetsValue::PossibleNewRpgTargetsValue(PlayerbotAI* botAI, float range)
-    : NearestUnitsValue(botAI, "possible new rpg targets", range, true)
+    : NearestUnitsValue(botAI, "possible new rpg targets", range, true), defaultRange(range)
 {
-    if (allowedNpcFlags.empty())
-    {
-        allowedNpcFlags.push_back(UNIT_NPC_FLAG_INNKEEPER);
-        allowedNpcFlags.push_back(UNIT_NPC_FLAG_GOSSIP);
-        allowedNpcFlags.push_back(UNIT_NPC_FLAG_QUESTGIVER);
-        allowedNpcFlags.push_back(UNIT_NPC_FLAG_FLIGHTMASTER);
-        allowedNpcFlags.push_back(UNIT_NPC_FLAG_BANKER);
-        allowedNpcFlags.push_back(UNIT_NPC_FLAG_GUILD_BANKER);
-        allowedNpcFlags.push_back(UNIT_NPC_FLAG_TRAINER_CLASS);
-        allowedNpcFlags.push_back(UNIT_NPC_FLAG_TRAINER_PROFESSION);
-        allowedNpcFlags.push_back(UNIT_NPC_FLAG_VENDOR_AMMO);
-        allowedNpcFlags.push_back(UNIT_NPC_FLAG_VENDOR_FOOD);
-        allowedNpcFlags.push_back(UNIT_NPC_FLAG_VENDOR_POISON);
-        allowedNpcFlags.push_back(UNIT_NPC_FLAG_VENDOR_REAGENT);
-        allowedNpcFlags.push_back(UNIT_NPC_FLAG_AUCTIONEER);
-        allowedNpcFlags.push_back(UNIT_NPC_FLAG_STABLEMASTER);
-        allowedNpcFlags.push_back(UNIT_NPC_FLAG_PETITIONER);
-        allowedNpcFlags.push_back(UNIT_NPC_FLAG_TABARDDESIGNER);
-        allowedNpcFlags.push_back(UNIT_NPC_FLAG_BATTLEMASTER);
-
-        allowedNpcFlags.push_back(UNIT_NPC_FLAG_TRAINER);
-        allowedNpcFlags.push_back(UNIT_NPC_FLAG_VENDOR);
-        allowedNpcFlags.push_back(UNIT_NPC_FLAG_REPAIR);
-    }
 }
 
 GuidVector PossibleNewRpgTargetsValue::Calculate()
 {
+    if (rpgRangeOverrideAreaIds.count(bot->GetAreaId()) && defaultRange < 200.0f)
+        range = 200.0f;
+    else
+        range = defaultRange;
+
     std::list<Unit*> targets;
     FindUnits(targets);
 
@@ -167,7 +172,9 @@ bool PossibleNewRpgTargetsValue::AcceptUnit(Unit* unit)
     return false;
 }
 
-std::vector<GameobjectTypes> PossibleNewRpgGameObjectsValue::allowedGOFlags;
+const std::vector<GameobjectTypes> PossibleNewRpgGameObjectsValue::allowedGOFlags = {
+    GAMEOBJECT_TYPE_QUESTGIVER,
+};
 
 GuidVector PossibleNewRpgGameObjectsValue::Calculate()
 {

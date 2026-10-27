@@ -1,10 +1,11 @@
 /*
- * Copyright (C) 2016+ AzerothCore <www.azerothcore.org>, released under GNU AGPL v3 license, you may redistribute it
- * and/or modify it under version 3 of the License, or (at your option), any later version.
+ * This file is part of the mod-playerbots module for AzerothCore. See AUTHORS file for Copyright
+ * information; released under GNU GPL v2 license, redistribute/modify under version 2 of the License,
+ * or (at your option) any later version.
  */
 
 #include "CustomStrategyEditAction.h"
-
+#include "PlayerbotsDatabase.h"
 #include "CustomStrategy.h"
 #include "Event.h"
 #include "Playerbots.h"
@@ -96,7 +97,7 @@ bool CustomStrategyEditAction::Edit(std::string const name, uint32 idx, std::str
             stmt->SetData(0, name);
             stmt->SetData(1, owner);
             stmt->SetData(2, idx);
-            PlayerbotsDatabase.Execute(stmt);
+            PlayerbotsDatabase.DirectExecute(stmt);
         }
         else
         {
@@ -105,7 +106,7 @@ bool CustomStrategyEditAction::Edit(std::string const name, uint32 idx, std::str
             stmt->SetData(1, name);
             stmt->SetData(2, owner);
             stmt->SetData(3, idx);
-            PlayerbotsDatabase.Execute(stmt);
+            PlayerbotsDatabase.DirectExecute(stmt);
         }
     }
     else
@@ -115,7 +116,7 @@ bool CustomStrategyEditAction::Edit(std::string const name, uint32 idx, std::str
         stmt->SetData(1, owner);
         stmt->SetData(2, idx);
         stmt->SetData(3, command);
-        PlayerbotsDatabase.Execute(stmt);
+        PlayerbotsDatabase.DirectExecute(stmt);
     }
 
     PrintActionLine(idx, command);
